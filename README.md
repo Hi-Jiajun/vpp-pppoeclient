@@ -241,13 +241,9 @@ ping 2400:3200::1            # IPv6 test
 
 If this project has been helpful to you, consider buying me a coffee!
 
-<div align="center">
-
 | <img src="https://Hi-Jiajun.github.io/picx-images-hosting/wechat_qrcode.icohq9bcf.webp" height="260"> | <img src="https://Hi-Jiajun.github.io/picx-images-hosting/alipay_qrcode.7p45v27tjq.webp" height="260"> |
 | :---: | :---: |
 | **WeChat Pay** | **Alipay** |
-
-</div>
 
 ---
 

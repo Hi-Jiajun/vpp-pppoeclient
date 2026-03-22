@@ -240,13 +240,9 @@ ping 2400:3200::1            # IPv6 连通测试
 
 如果本项目对您有帮助，欢迎赞赏支持！
 
-<div align="center">
-
 | <img src="https://Hi-Jiajun.github.io/picx-images-hosting/wechat_qrcode.icohq9bcf.webp" height="260"> | <img src="https://Hi-Jiajun.github.io/picx-images-hosting/alipay_qrcode.7p45v27tjq.webp" height="260"> |
 | :---: | :---: |
 | **微信支付** | **支付宝** |
-
-</div>
 
 ---
 
