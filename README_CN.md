@@ -91,8 +91,8 @@ src/plugins/
 ### 编译
 
 ```bash
-# 克隆已集成插件的 VPP 完整分支
-git clone https://github.com/Hi-Jiajun/vpp.git -b pppoeclient-plugin-fix
+# 克隆已集成插件的 VPP 完整分支（稳定 Tag 版本）
+git clone https://github.com/Hi-Jiajun/vpp.git -b v26.02-pppoe-v1.0
 cd vpp
 
 # 首次编译
@@ -217,7 +217,7 @@ ping 2400:3200::1            # IPv6 连通测试
 ## 📚 参考资料
 
 - [FD.io VPP](https://github.com/FDio/vpp) — 高性能包处理框架
-- [Hi-Jiajun/vpp (pppoeclient-plugin-fix)](https://github.com/Hi-Jiajun/vpp/tree/pppoeclient-plugin-fix) — 集成了本插件的完整 VPP 分支
+- [Hi-Jiajun/vpp](https://github.com/Hi-Jiajun/vpp) — 集成了本插件的完整 VPP 分支（请检出 `v26.02-pppoe-v1.0` 标签或 `feat/pr-pppoeclient` 分支）
 - [pppd](https://ppp.samba.org/) — 本项目适配的 PPP 控制面引擎
 - [RaydoNetworks/ppp-vpp](https://github.com/pppoe/ppp-vpp) — PPPoE/PPPoX 插件原始概念
 - [RFC 2516](https://www.rfc-editor.org/rfc/rfc2516) — PPPoE 规范

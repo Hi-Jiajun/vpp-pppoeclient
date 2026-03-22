@@ -91,8 +91,8 @@ src/plugins/
 ### Build
 
 ```bash
-# Clone the full VPP fork with plugins pre-integrated
-git clone https://github.com/Hi-Jiajun/vpp.git -b pppoeclient-plugin-fix
+# Clone the full VPP fork with plugins pre-integrated (stable tag)
+git clone https://github.com/Hi-Jiajun/vpp.git -b v26.02-pppoe-v1.0
 cd vpp
 
 # First-time build
@@ -218,7 +218,7 @@ ping 2400:3200::1            # IPv6 test
 ## 📚 References
 
 - [FD.io VPP](https://github.com/FDio/vpp) — High-performance packet processing framework
-- [Hi-Jiajun/vpp (pppoeclient-plugin-fix)](https://github.com/Hi-Jiajun/vpp/tree/pppoeclient-plugin-fix) — Full VPP fork with plugins integrated
+- [Hi-Jiajun/vpp](https://github.com/Hi-Jiajun/vpp) — Full VPP fork with plugins integrated (see tag: `v26.02-pppoe-v1.0` or branch: `feat/pr-pppoeclient`)
 - [pppd](https://ppp.samba.org/) — The PPP control-plane engine this project adapts
 - [RaydoNetworks/ppp-vpp](https://github.com/pppoe/ppp-vpp) — Original PPPoE/PPPoX plugin concept
 - [RFC 2516](https://www.rfc-editor.org/rfc/rfc2516) — PPPoE specification
