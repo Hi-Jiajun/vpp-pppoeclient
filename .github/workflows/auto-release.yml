@@ -1,0 +1,91 @@
+name: Auto Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - "src/plugins/pppoeclient/**"
+      - "src/plugins/pppox/**"
+      - "README.md"
+      - "README_CN.md"
+      - "README_EN.md"
+      - "scripts/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-release-master
+  cancel-in-progress: false
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          release_tag="auto-${short_sha}"
+          release_title="Auto Release ${short_sha}"
+          release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          asset_name="vpp-pppoeclient-${short_sha}.zip"
+          {
+            echo "tag=${release_tag}"
+            echo "title=${release_title}"
+            echo "date=${release_date}"
+            echo "asset_name=${asset_name}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build release zip
+        shell: bash
+        run: |
+          mkdir -p dist
+          git archive \
+            --format=zip \
+            --output="dist/${{ steps.meta.outputs.asset_name }}" \
+            "${GITHUB_SHA}"
+
+      - name: Check whether release already exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "${{ steps.meta.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release
+        if: steps.exists.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            --target "${GITHUB_SHA}" \
+            --title "${{ steps.meta.outputs.title }}" \
+            --notes "Automated release created from commit ${GITHUB_SHA} on ${{ steps.meta.outputs.date }}." \
+            --generate-notes \
+            "dist/${{ steps.meta.outputs.asset_name }}"
+
+      - name: Upload zip to existing release
+        if: steps.exists.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${{ steps.meta.outputs.tag }}" \
+            "dist/${{ steps.meta.outputs.asset_name }}" \
+            --clobber

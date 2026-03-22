@@ -33,6 +33,86 @@ Together they provide a complete PPPoE client running inside VPP user space.
 - 🔖 Synced upstream commit: `ee002b08dffaed8cf94a3b1f193619950ebbfca9`
 - 🧾 This repo commit that synced and refreshed docs: `1db4da9`
 
+## 🔄 Sync From Upstream
+
+This repository can sync only the upstream directories that belong to this project:
+
+- `src/plugins/pppoeclient`
+- `src/plugins/pppox`
+
+The repo now supports an `upstream` remote:
+
+- `upstream`: `https://github.com/Hi-Jiajun/vpp.git`
+
+It also includes a helper script:
+
+- [scripts/sync-from-upstream.ps1](./scripts/sync-from-upstream.ps1)
+- [scripts/sync-from-upstream.sh](./scripts/sync-from-upstream.sh)
+
+Run it from PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-from-upstream.ps1
+```
+
+The script will:
+
+- ensure the `upstream` remote exists
+- fetch `feat/pr-pppoeclient`
+- perform a sparse clone of the upstream repository
+- mirror only `src/plugins/pppoeclient` and `src/plugins/pppox`
+- print the exact upstream commit used for the sync
+
+Run it on Linux or macOS:
+
+```bash
+chmod +x ./scripts/sync-from-upstream.sh
+./scripts/sync-from-upstream.sh
+```
+
+Check only, without modifying local files:
+
+```bash
+./scripts/sync-from-upstream.sh --check
+```
+
+## 🤖 Automated Check
+
+The repository now includes a GitHub Actions workflow:
+
+- `.github/workflows/check-upstream-sync.yml`
+
+It automatically checks whether the plugin directories in this repository still match upstream on:
+
+- manual dispatch
+- daily schedule
+- relevant `push` and `pull_request` events
+
+If [src/plugins/pppoeclient](./src/plugins/pppoeclient) or [src/plugins/pppox](./src/plugins/pppox)
+drift from upstream `feat/pr-pppoeclient`, the workflow will fail.
+
+## 🚀 Automated Releases
+
+The repository also includes an automatic release workflow:
+
+- `.github/workflows/auto-release.yml`
+
+It creates a GitHub Release automatically when `master` receives project-related updates in:
+
+- `src/plugins/pppoeclient/**`
+- `src/plugins/pppox/**`
+- `README.md`
+- `README_CN.md`
+- `README_EN.md`
+- `scripts/**`
+
+Release behavior:
+
+- each commit gets an automatic tag based on its short SHA, for example `auto-da21b11`
+- the same commit will not create duplicate releases
+- the release targets the exact commit and includes generated notes
+- each release also uploads a `.zip` package, for example `vpp-pppoeclient-da21b11.zip`
+
 ## 🧩 Highlights
 
 - 🔄 Full PPPoE lifecycle: `PADI`, `PADO`, `PADR`, `PADS`, `PADT`

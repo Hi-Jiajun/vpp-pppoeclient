@@ -32,6 +32,86 @@
 - 🔖 当前同步的上游提交：`ee002b08dffaed8cf94a3b1f193619950ebbfca9`
 - 🧾 本仓库用于同步并更新文档的提交：`1db4da9`
 
+## 🔄 同步上游
+
+这个仓库已经可以把上游 VPP Fork 中“只和本项目相关”的目录同步下来，范围固定为：
+
+- `src/plugins/pppoeclient`
+- `src/plugins/pppox`
+
+仓库里已经支持 `upstream` 远端：
+
+- `upstream`: `https://github.com/Hi-Jiajun/vpp.git`
+
+也提供了一键同步脚本：
+
+- [scripts/sync-from-upstream.ps1](./scripts/sync-from-upstream.ps1)
+- [scripts/sync-from-upstream.sh](./scripts/sync-from-upstream.sh)
+
+在 PowerShell 中运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\sync-from-upstream.ps1
+```
+
+这个脚本会：
+
+- 自动检查并补充 `upstream` 远端
+- 拉取 `feat/pr-pppoeclient`
+- 稀疏克隆上游仓库，只取插件相关目录
+- 镜像同步 `src/plugins/pppoeclient` 和 `src/plugins/pppox`
+- 输出本次同步对应的上游 commit
+
+在 Linux / macOS 中运行：
+
+```bash
+chmod +x ./scripts/sync-from-upstream.sh
+./scripts/sync-from-upstream.sh
+```
+
+只检查是否与上游一致，不改本地文件：
+
+```bash
+./scripts/sync-from-upstream.sh --check
+```
+
+## 🤖 自动检查
+
+仓库新增了 GitHub Action：
+
+- `.github/workflows/check-upstream-sync.yml`
+
+它会在这些场景自动检查当前仓库中的插件目录是否仍与上游一致：
+
+- 手动触发
+- 每天定时检查
+- 涉及插件目录、同步脚本或工作流本身的 `push` / `pull_request`
+
+如果检测到 [src/plugins/pppoeclient](./src/plugins/pppoeclient) 或 [src/plugins/pppox](./src/plugins/pppox)
+与上游 `feat/pr-pppoeclient` 不一致，Action 会失败。
+
+## 🚀 自动发布 Release
+
+仓库还新增了自动发布工作流：
+
+- `.github/workflows/auto-release.yml`
+
+它会在 `master` 分支有项目相关更新时自动创建 GitHub Release，触发范围包括：
+
+- `src/plugins/pppoeclient/**`
+- `src/plugins/pppox/**`
+- `README.md`
+- `README_CN.md`
+- `README_EN.md`
+- `scripts/**`
+
+发布规则：
+
+- 每个提交按短 SHA 自动生成一个 tag，例如 `auto-da21b11`
+- 同一个提交如果已经发过 Release，就不会重复创建
+- Release 会自动指向对应提交并附带自动生成的说明
+- Release 会额外上传一个 `.zip` 压缩包，例如 `vpp-pppoeclient-da21b11.zip`
+
 ## 🧩 当前版本亮点
 
 - 🔄 完整支持 `PADI`、`PADO`、`PADR`、`PADS`、`PADT`
