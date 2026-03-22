@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * options.c - handles option processing for PPP.
  *
@@ -40,7 +41,7 @@
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#define RCSID	"$Id: options.c,v 1.102 2008/06/15 06:53:06 paulus Exp $"
+#define RCSID "$Id: options.c,v 1.102 2008/06/15 06:53:06 paulus Exp $"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -65,9 +66,9 @@
  */
 #ifndef DLT_PPP_PPPD
 #ifdef DLT_PPP_WITHDIRECTION
-#define DLT_PPP_PPPD	DLT_PPP_WITHDIRECTION
+#define DLT_PPP_PPPD DLT_PPP_WITHDIRECTION
 #else
-#define DLT_PPP_PPPD	DLT_PPP
+#define DLT_PPP_PPPD DLT_PPP
 #endif
 #endif
 #endif /* PPP_FILTER */
@@ -76,58 +77,58 @@
 #include "pathnames.h"
 
 #if defined(ultrix) || defined(NeXT)
-char *strdup __P((char *));
+char *strdup __P ((char *) );
 #endif
 
 // ZDY: remove not used complaints.
-//static const char rcsid[] = RCSID;
+// static const char rcsid[] = RCSID;
 
-struct option_value {
-    struct option_value *next;
-    const char *source;
-    char value[1];
+struct option_value
+{
+  struct option_value *next;
+  const char *source;
+  char value[1];
 };
 
 /*
  * Option variables and default values.
  */
 // ZDY: enable debug for test.
-int	debug = 1;		/* Debug flag */
-bool	nodetach = 0;		/* Don't detach from controlling tty */
-bool	updetach = 0;		/* Detach once link is up */
-bool	master_detach;		/* Detach when we're (only) multilink master */
-char	user[MAXNAMELEN];	/* Username for PAP */
-char	passwd[MAXSECRETLEN];	/* Password for PAP */
-bool	persist = 0;		/* Reopen link after it goes down */
-char	our_name[MAXNAMELEN];	/* Our name for authentication purposes */
-bool	demand = 0;		/* do dial-on-demand */
-char	*ipparam = NULL;	/* Extra parameter for ip up/down scripts */
-int	idle_time_limit = 0;	/* Disconnect if idle for this many seconds */
-int	holdoff = 30;		/* # seconds to pause before reconnecting */
-bool	holdoff_specified;	/* true if a holdoff value has been given */
-int	connect_delay = 1000;	/* wait this many ms after connect script */
-int	req_unit = -1;		/* requested interface unit */
-bool	multilink = 0;		/* Enable multilink operation */
-char	*bundle_name = NULL;	/* bundle name for multilink */
-bool	dump_options;		/* print out option values */
-bool	dryrun;			/* print out option values and exit */
-char	*domain;		/* domain name set by domain option */
-int	child_wait = 5;		/* # seconds to wait for children at exit */
-struct userenv *userenv_list;	/* user environment variables */
-
+int debug = 1;		      /* Debug flag */
+bool nodetach = 0;	      /* Don't detach from controlling tty */
+bool updetach = 0;	      /* Detach once link is up */
+bool master_detach;	      /* Detach when we're (only) multilink master */
+char user[MAXNAMELEN];	      /* Username for PAP */
+char passwd[MAXSECRETLEN];    /* Password for PAP */
+bool persist = 0;	      /* Reopen link after it goes down */
+char our_name[MAXNAMELEN];    /* Our name for authentication purposes */
+bool demand = 0;	      /* do dial-on-demand */
+char *ipparam = NULL;	      /* Extra parameter for ip up/down scripts */
+int idle_time_limit = 0;      /* Disconnect if idle for this many seconds */
+int holdoff = 30;	      /* # seconds to pause before reconnecting */
+bool holdoff_specified;	      /* true if a holdoff value has been given */
+int connect_delay = 1000;     /* wait this many ms after connect script */
+int req_unit = -1;	      /* requested interface unit */
+bool multilink = 0;	      /* Enable multilink operation */
+char *bundle_name = NULL;     /* bundle name for multilink */
+bool dump_options;	      /* print out option values */
+bool dryrun;		      /* print out option values and exit */
+char *domain;		      /* domain name set by domain option */
+int child_wait = 5;	      /* # seconds to wait for children at exit */
+struct userenv *userenv_list; /* user environment variables */
 
 extern option_t auth_options[];
 extern struct stat devstat;
 
 #ifdef PPP_FILTER
-struct	bpf_program pass_filter;/* Filter program for packets to pass */
-struct	bpf_program active_filter; /* Filter program for link-active pkts */
+struct bpf_program pass_filter;	  /* Filter program for packets to pass */
+struct bpf_program active_filter; /* Filter program for link-active pkts */
 #endif
 
-char *current_option;		/* the name of the option being parsed */
-int  privileged_option;		/* set iff the current option came from root */
-char *option_source;		/* string saying where the option came from */
-int  option_priority = OPRIO_CFGFILE; /* priority of the current options */
+char *current_option;		     /* the name of the option being parsed */
+int privileged_option;		     /* set iff the current option came from root */
+char *option_source;		     /* string saying where the option came from */
+int option_priority = OPRIO_CFGFILE; /* priority of the current options */
 
 /*
  * Read a word from a file.
@@ -136,11 +137,11 @@ int  option_priority = OPRIO_CFGFILE; /* priority of the current options */
  * \<newline> is ignored.
  */
 int
-getword(f, word, newlinep, filename)
-    FILE *f;
-    char *word;
-    int *newlinep;
-    char *filename;
+getword (f, word, newlinep, filename)
+FILE *f;
+char *word;
+int *newlinep;
+char *filename;
 {
   // ZDY: will be removed later.
   f = f;

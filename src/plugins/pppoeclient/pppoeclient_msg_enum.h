@@ -1,14 +1,16 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * pppoeclient_msg_enum.h - vpp engine plug-in message enumeration
  *
  * Copyright (c) 2017 RaydoNetworks.
+ * Copyright (c) 2026 Hi-Jiajun.
  */
 #ifndef included_pppoeclient_msg_enum_h
 #define included_pppoeclient_msg_enum_h
 
 #include <vppinfra/byte_order.h>
 
-#define vl_msg_id(n,h) n,
+#define vl_msg_id(n, h) n,
 typedef enum
 {
 #include <pppoeclient/pppoeclient_all_api_h.h>

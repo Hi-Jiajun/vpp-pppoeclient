@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * chap-new.c - New CHAP implementation.
  *
@@ -31,72 +32,73 @@
 /*
  * CHAP packets begin with a standard header with code, id, len (2 bytes).
  */
-#define CHAP_HDRLEN	4
+#define CHAP_HDRLEN 4
 
 /*
  * Values for the code field.
  */
-#define CHAP_CHALLENGE	1
-#define CHAP_RESPONSE	2
-#define CHAP_SUCCESS	3
-#define CHAP_FAILURE	4
+#define CHAP_CHALLENGE 1
+#define CHAP_RESPONSE  2
+#define CHAP_SUCCESS   3
+#define CHAP_FAILURE   4
 
 /*
  * CHAP digest codes.
  */
-#define CHAP_MD5		5
-#define CHAP_MICROSOFT		0x80
-#define CHAP_MICROSOFT_V2	0x81
+#define CHAP_MD5	  5
+#define CHAP_MICROSOFT	  0x80
+#define CHAP_MICROSOFT_V2 0x81
 
 /*
  * Semi-arbitrary limits on challenge and response fields.
  */
-#define MAX_CHALLENGE_LEN	64
-#define MAX_RESPONSE_LEN	64
+#define MAX_CHALLENGE_LEN 64
+#define MAX_RESPONSE_LEN  64
 
 /* bitmask of supported algorithms */
-#define MDTYPE_MICROSOFT_V2	0x1
-#define MDTYPE_MICROSOFT	0x2
-#define MDTYPE_MD5		0x4
-#define MDTYPE_NONE		0
+#define MDTYPE_MICROSOFT_V2 0x1
+#define MDTYPE_MICROSOFT    0x2
+#define MDTYPE_MD5	    0x4
+#define MDTYPE_NONE	    0
 
 /* hashes supported by this instance of pppd */
 extern int chap_mdtype_all;
 
 /* Return the digest alg. ID for the most preferred digest type. */
-#define CHAP_DIGEST(mdtype) \
-    ((mdtype) & MDTYPE_MD5)? CHAP_MD5: \
-    ((mdtype) & MDTYPE_MICROSOFT_V2)? CHAP_MICROSOFT_V2: \
-    ((mdtype) & MDTYPE_MICROSOFT)? CHAP_MICROSOFT: \
-    0
+#define CHAP_DIGEST(mdtype)                                                                        \
+  ((mdtype) &MDTYPE_MD5)	  ? CHAP_MD5 :                                                     \
+  ((mdtype) &MDTYPE_MICROSOFT_V2) ? CHAP_MICROSOFT_V2 :                                            \
+  ((mdtype) &MDTYPE_MICROSOFT)	  ? CHAP_MICROSOFT :                                               \
+				    0
 
 /* Return the bit flag (lsb set) for our most preferred digest type. */
-#define CHAP_MDTYPE(mdtype) ((mdtype) ^ ((mdtype) - 1)) & (mdtype)
+#define CHAP_MDTYPE(mdtype) ((mdtype) ^ ((mdtype) -1)) & (mdtype)
 
 /* Return the bit flag for a given digest algorithm ID. */
-#define CHAP_MDTYPE_D(digest) \
-    ((digest) == CHAP_MICROSOFT_V2)? MDTYPE_MICROSOFT_V2: \
-    ((digest) == CHAP_MICROSOFT)? MDTYPE_MICROSOFT: \
-    ((digest) == CHAP_MD5)? MDTYPE_MD5: \
-    0
+#define CHAP_MDTYPE_D(digest)                                                                      \
+  ((digest) == CHAP_MICROSOFT_V2) ? MDTYPE_MICROSOFT_V2 :                                          \
+  ((digest) == CHAP_MICROSOFT)	  ? MDTYPE_MICROSOFT :                                             \
+  ((digest) == CHAP_MD5)	  ? MDTYPE_MD5 :                                                   \
+				    0
 
 /* Can we do the requested digest? */
-#define CHAP_CANDIGEST(mdtype, digest) \
-    ((digest) == CHAP_MICROSOFT_V2)? (mdtype) & MDTYPE_MICROSOFT_V2: \
-    ((digest) == CHAP_MICROSOFT)? (mdtype) & MDTYPE_MICROSOFT: \
-    ((digest) == CHAP_MD5)? (mdtype) & MDTYPE_MD5: \
-    0
+#define CHAP_CANDIGEST(mdtype, digest)                                                             \
+  ((digest) == CHAP_MICROSOFT_V2) ? (mdtype) &MDTYPE_MICROSOFT_V2 :                                \
+  ((digest) == CHAP_MICROSOFT)	  ? (mdtype) &MDTYPE_MICROSOFT :                                   \
+  ((digest) == CHAP_MD5)	  ? (mdtype) &MDTYPE_MD5 :                                         \
+				    0
 
 // ZDY: moved out c/s state.
-struct chap_client_state {
+struct chap_client_state
+{
   int flags;
   char *name;
-  char *us_user;		/* User */
-  int us_userlen;		/* User length */
-  char *us_passwd;		/* Password */
-  int us_passwdlen;		/* Password length */
+  char *us_user;    /* User */
+  int us_userlen;   /* User length */
+  char *us_passwd;  /* Password */
+  int us_passwdlen; /* Password length */
   struct chap_digest_type *digest;
-  unsigned char priv[64];		/* private area for digest's use */
+  unsigned char priv[64]; /* private area for digest's use */
 };
 
 extern struct chap_client_state chap_client[NUM_PPP];
@@ -105,10 +107,11 @@ extern struct chap_client_state chap_client[NUM_PPP];
  * These limits apply to challenge and response packets we send.
  * The +4 is the +1 that we actually need rounded up.
  */
-#define CHAL_MAX_PKTLEN	(PPP_HDRLEN + CHAP_HDRLEN + 4 + MAX_CHALLENGE_LEN + MAXNAMELEN)
-#define RESP_MAX_PKTLEN	(PPP_HDRLEN + CHAP_HDRLEN + 4 + MAX_RESPONSE_LEN + MAXNAMELEN)
+#define CHAL_MAX_PKTLEN (PPP_HDRLEN + CHAP_HDRLEN + 4 + MAX_CHALLENGE_LEN + MAXNAMELEN)
+#define RESP_MAX_PKTLEN (PPP_HDRLEN + CHAP_HDRLEN + 4 + MAX_RESPONSE_LEN + MAXNAMELEN)
 
-struct chap_server_state {
+struct chap_server_state
+{
   int flags;
   int id;
   char *name;
@@ -124,41 +127,39 @@ extern struct chap_server_state chap_server[NUM_PPP];
 /*
  * The code for each digest type has to supply one of these.
  */
-struct chap_digest_type {
-	int code;
+struct chap_digest_type
+{
+  int code;
 
-	/*
-	 * Note: challenge and response arguments below are formatted as
-	 * a length byte followed by the actual challenge/response data.
-	 */
-	void (*generate_challenge)(unsigned char *challenge);
-	int (*verify_response)(int id, char *name,
-		unsigned char *secret, int secret_len,
-		unsigned char *challenge, unsigned char *response,
-		char *message, int message_space);
-	void (*make_response)(unsigned char *response, int id, char *our_name,
-		unsigned char *challenge, char *secret, int secret_len,
-		unsigned char *priv);
-	int (*check_success)(int id, unsigned char *pkt, int len);
-	void (*handle_failure)(unsigned char *pkt, int len);
+  /*
+   * Note: challenge and response arguments below are formatted as
+   * a length byte followed by the actual challenge/response data.
+   */
+  void (*generate_challenge) (unsigned char *challenge);
+  int (*verify_response) (int id, char *name, unsigned char *secret, int secret_len,
+			  unsigned char *challenge, unsigned char *response, char *message,
+			  int message_space);
+  void (*make_response) (unsigned char *response, int id, char *our_name, unsigned char *challenge,
+			 char *secret, int secret_len, unsigned char *priv);
+  int (*check_success) (int id, unsigned char *pkt, int len);
+  void (*handle_failure) (unsigned char *pkt, int len);
 
-	struct chap_digest_type *next;
+  struct chap_digest_type *next;
 };
 
 /* Hook for a plugin to validate CHAP challenge */
-extern int (*chap_verify_hook)(int unit, char *name, char *ourname, int id,
-			struct chap_digest_type *digest,
-			unsigned char *challenge, unsigned char *response,
-			char *message, int message_space);
+extern int (*chap_verify_hook) (int unit, char *name, char *ourname, int id,
+				struct chap_digest_type *digest, unsigned char *challenge,
+				unsigned char *response, char *message, int message_space);
 
 /* Called by digest code to register a digest type */
-extern void chap_register_digest(struct chap_digest_type *);
+extern void chap_register_digest (struct chap_digest_type *);
 
 /* Called by authentication code to start authenticating the peer. */
-extern void chap_auth_peer(int unit, char *our_name, int digest_code);
+extern void chap_auth_peer (int unit, char *our_name, int digest_code);
 
 /* Called by auth. code to start authenticating us to the peer. */
-extern void chap_auth_with_peer(int unit, char *our_name, int digest_code);
+extern void chap_auth_with_peer (int unit, char *our_name, int digest_code);
 
 /* Represents the CHAP protocol to the main pppd code */
 extern struct protent chap_protent;

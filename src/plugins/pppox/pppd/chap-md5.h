@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * chap-md5.h - New CHAP/MD5 implementation.
  *
@@ -28,4 +29,4 @@
  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-extern void chap_md5_init(void);
+extern void chap_md5_init (void);

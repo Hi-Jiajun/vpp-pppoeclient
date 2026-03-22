@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * ecp.h - Definitions for PPP Encryption Control Protocol.
  *
@@ -31,9 +32,10 @@
  * $Id: ecp.h,v 1.2 2003/01/10 07:12:36 fcusack Exp $
  */
 
-typedef struct ecp_options {
-    bool required;		/* Is ECP required? */
-    unsigned enctype;		/* Encryption type */
+typedef struct ecp_options
+{
+  bool required;    /* Is ECP required? */
+  unsigned enctype; /* Encryption type */
 } ecp_options;
 
 extern fsm ecp_fsm[];

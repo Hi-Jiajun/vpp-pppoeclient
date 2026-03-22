@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * pppoeclient_all_api_h.h - plug-in api #include file
  */

@@ -1,5 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (c) 2017 RaydoNetworks.
+ * Copyright (c) 2026 Hi-Jiajun.
  */
 
 #ifndef _PPPOX_H
@@ -20,31 +22,39 @@
 #include <vlib/vlib.h>
 #include <vppinfra/bihash_8_8.h>
 
+typedef struct
+{
+  u32 len;
+} pppox_vnet_buffer_opaque_t;
+
+STATIC_ASSERT (sizeof (pppox_vnet_buffer_opaque_t) <= VNET_BUFFER_OPAQUE_SIZE,
+	       "pppox_vnet_buffer_opaque_t too large");
+
+#define pppox_buffer(b) ((pppox_vnet_buffer_opaque_t *) vnet_buffer_get_opaque (b))
+
 typedef enum
 {
-#define pppox_error(n,s) PPPOX_ERROR_##n,
+#define pppox_error(n, s) PPPOX_ERROR_##n,
 #include <pppox/pppox_error.def>
 #undef pppox_error
   PPPOX_N_ERROR,
 } pppox_error_t;
 
-#define foreach_pppox_input_next       \
-_(DROP, "error-drop")
+#define foreach_pppox_input_next _ (DROP, "error-drop")
 
 typedef enum
 {
-#define _(s,n) PPPOX_INPUT_NEXT_##s,
+#define _(s, n) PPPOX_INPUT_NEXT_##s,
   foreach_pppox_input_next
 #undef _
     PPPOX_INPUT_N_NEXT,
 } pppox_input_next_t;
 
-#define foreach_pppox_output_next       \
-_(DROP, "error-drop")
+#define foreach_pppox_output_next _ (DROP, "error-drop")
 
 typedef enum
 {
-#define _(s,n) PPPOX_OUTPUT_NEXT_##s,
+#define _(s, n) PPPOX_OUTPUT_NEXT_##s,
   foreach_pppox_output_next
 #undef _
     PPPOX_OUTPUT_N_NEXT,
@@ -89,7 +99,7 @@ typedef struct
 
   /* API message ID base */
   u16 msg_id_base;
-  
+
   /* convenience */
   vlib_main_t *vlib_main;
   vnet_main_t *vnet_main;
@@ -102,23 +112,22 @@ extern vlib_node_registration_t pppox_output_node;
 
 int consume_pppox_ctrl_pkt (u32, vlib_buffer_t *);
 
-u32 pppox_allocate_interface(u32);
+u32 pppox_allocate_interface (u32);
 
-void pppox_free_interface(u32);
+void pppox_free_interface (u32);
 
-void pppox_lower_up(u32);
+void pppox_lower_up (u32);
 
 int pppox_set_auth (u32, u8 *, u8 *);
-int pppox_set_add_default_route (u32, u8);   /* sets both IPv4 and IPv6 */
-int pppox_set_add_default_route4 (u32, u8);  /* IPv4 only */
-int pppox_set_add_default_route6 (u32, u8);  /* IPv6 only */
+int pppox_set_add_default_route (u32, u8);  /* sets both IPv4 and IPv6 */
+int pppox_set_add_default_route4 (u32, u8); /* IPv4 only */
+int pppox_set_add_default_route6 (u32, u8); /* IPv6 only */
 int pppox_set_use_peer_dns (u32, u8);
 void pppox_set_interface_mtu (int, int);
 
 #endif /* _PPPOX_H */
 
 /*
- * fd.io coding-style-patch-verification: ON
  *
  * Local Variables:
  * eval: (c-set-style "gnu")

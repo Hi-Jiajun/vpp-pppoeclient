@@ -1,5 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (c) 2017 RaydoNetworks.
+ * Copyright (c) 2026 Hi-Jiajun.
  */
 #include <stdint.h>
 #include <net/if.h>
@@ -12,13 +14,12 @@
 #include <vnet/dpo/interface_tx_dpo.h>
 #include <vnet/plugin/plugin.h>
 #include <vpp/app/version.h>
-#include <vnet/ppp/packet.h>
+#include <ppp/packet.h>
 #include <pppox/pppox.h>
 #include <pppox/pppd/pppd.h>
 
 static clib_error_t *
-pppox_set_auth_command_fn (vlib_main_t * vm, unformat_input_t * input,
-                           vlib_cli_command_t * cmd)
+pppox_set_auth_command_fn (vlib_main_t *vm, unformat_input_t *input, vlib_cli_command_t *cmd)
 {
   unformat_input_t _line_input, *line_input = &_line_input;
   clib_error_t *error = 0;
@@ -41,8 +42,7 @@ pppox_set_auth_command_fn (vlib_main_t * vm, unformat_input_t * input,
 	;
       else
 	{
-	  error = clib_error_return (0, "unknown input `%U'",
-				     format_unformat_error, line_input);
+	  error = clib_error_return (0, "unknown input `%U'", format_unformat_error, line_input);
 	  goto done;
 	}
     }
@@ -85,11 +85,8 @@ done:
  * Example of how to set pppox pap secret:
  * @cliexcmd{pppox set auth username 027 password 720}
  ?*/
-/* *INDENT-OFF* */
 VLIB_CLI_COMMAND (pppox_set_auth_command, static) = {
   .path = "pppox set auth",
-  .short_help =
-  "pppox set auth sw-if-index <nn> username <string> password <string>",
+  .short_help = "pppox set auth sw-if-index <nn> username <string> password <string>",
   .function = pppox_set_auth_command_fn,
 };
-/* *INDENT-ON* */

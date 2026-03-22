@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * ipv6cp.h - IPv6 Control Protocol definitions.
  *
@@ -48,19 +49,20 @@
  */
 #include <vppinfra/clib.h>
 #include <stdbool.h>
-#define CI_IFACEID	1	/* Interface Identifier */
-#define CI_IP6COMP	2	/* IPv6 Compression Protocol */
+#define CI_IFACEID 1 /* Interface Identifier */
+#define CI_IP6COMP 2 /* IPv6 Compression Protocol */
 
 #define MAX_STATES 16
 
-typedef struct ipv6cp_options {
-    bool neg_ifaceid;		/* Negotiate Interface Identifier? */
-    bool old_addrs;		/* Use old (interface-identifiers) option? */
-    bool req_ifaceid;		/* Ask peer to send interface identifier? */
-    bool accept_local;		/* accept peer's value for our identifier */
-    bool accept_remote;		/* accept peer's value for his identifier */
-    u8  ourid[8];		/* Our interface identifier */
-    u8  hisid[8];		/* His interface identifier */
+typedef struct ipv6cp_options
+{
+  bool neg_ifaceid;   /* Negotiate Interface Identifier? */
+  bool old_addrs;     /* Use old (interface-identifiers) option? */
+  bool req_ifaceid;   /* Ask peer to send interface identifier? */
+  bool accept_local;  /* accept peer's value for our identifier */
+  bool accept_remote; /* accept peer's value for his identifier */
+  u8 ourid[8];	      /* Our interface identifier */
+  u8 hisid[8];	      /* His interface identifier */
 } ipv6cp_options;
 
 extern fsm ipv6cp_fsm[];

@@ -1,5 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (c) 2017 RaydoNetworks.
+ * Copyright (c) 2026 Hi-Jiajun.
  */
 
 /** \brief Set or delete an PPPOE client
@@ -9,7 +11,7 @@
     @param sw_if_index - client bound ethernet if index
     @param host_uniq - tag identifying a PPPOE client on the the sw_if_index
 */
-define pppoe_add_del_client
+define pppoeclient_add_del
 {
   u32 client_index;
   u32 context;
@@ -23,7 +25,7 @@ define pppoe_add_del_client
     @param retval - return code
     @param pppox_sw_if_index - software index of the pppox interface
 */
-define pppoe_add_del_client_reply
+define pppoeclient_add_del_reply
 {
   u32 context;
   i32 retval;
@@ -35,7 +37,7 @@ define pppoe_add_del_client_reply
     @param context - sender context, to match reply w/ request
     @param sw_if_index - software index of the interface
 */
-define pppoe_client_dump
+define pppoeclient_dump
 {
   u32 client_index;
   u32 context;
@@ -47,7 +49,7 @@ define pppoe_client_dump
     @param sw_if_index - software index of the interface
     @param host_uniq - tag identifying a PPPOE client on the the sw_if_index
 */
-define pppoe_client_details
+define pppoeclient_details
 {
   u32 context;
   u32 sw_if_index;

@@ -1,5 +1,7 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  * Copyright (c) 2017 RaydoNetworks.
+ * Copyright (c) 2026 Hi-Jiajun.
  */
 
 /** \brief Set pppox auth used by ppp (can be used by pap/chap and etc.)

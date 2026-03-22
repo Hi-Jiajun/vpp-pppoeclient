@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: Apache-2.0 */
 /*
  *------------------------------------------------------------------
  * Copyright (c) 2017 RaydoNetworks.
+ * Copyright (c) 2026 Hi-Jiajun.
  *------------------------------------------------------------------
  */
 
@@ -21,6 +23,7 @@
 #include <vnet/fib/fib_table.h>
 #include <vlib/vlib.h>
 #include <vppinfra/bihash_8_8.h>
+#include <vppinfra/bihash_16_8.h>
 #include <vlib/buffer_funcs.h>
 
 typedef struct
@@ -39,48 +42,50 @@ typedef struct
   u8 value[0];
 } pppoe_tag_header_t;
 
-
 #define ETH_JUMBO_LEN 1508
 
 /* PPP Protocol Numbers */
-#define PPP_LCP 0xc021
-#define PPP_PAP 0xc023
-#define PPP_CHAP 0xc025
-#define PPP_IPCP 0x8021
+#define PPP_LCP	   0xc021
+#define PPP_PAP	   0xc023
+#define PPP_CHAP   0xc025
+#define PPP_IPCP   0x8021
 #define PPP_IPV6CP 0x8057
-#define PPP_IP 0x0021
-#define PPP_IPV6 0x0057
+#define PPP_IP	   0x0021
+#define PPP_IPV6   0x0057
 
 /* LCP Packet Types */
 #define LCP_CONFIGURE_REQUEST 1
-#define LCP_CONFIGURE_ACK 2
-#define LCP_CONFIGURE_NAK 3
+#define LCP_CONFIGURE_ACK     2
+#define LCP_CONFIGURE_NAK     3
 #define LCP_TERMINATE_REQUEST 5
-#define LCP_TERMINATE_ACK 6
-#define LCP_ECHO_REQUEST 9
-#define LCP_ECHO_REPLY 10
+#define LCP_TERMINATE_ACK     6
+#define LCP_ECHO_REQUEST      9
+#define LCP_ECHO_REPLY	      10
 
 /* LCP Options */
-#define LCP_OPTION_MRU 1
-#define LCP_OPTION_AUTH 3
+#define LCP_OPTION_MRU	 1
+#define LCP_OPTION_AUTH	 3
 #define LCP_OPTION_MAGIC 5
 
 /* LCP Packet Header */
-typedef struct {
+typedef struct
+{
   u8 code;
   u8 id;
   u16 length;
 } lcp_header_t;
 
 /* PAP Packet Header */
-typedef struct {
+typedef struct
+{
   u8 code;
   u8 id;
   u16 length;
 } pap_header_t;
 
 /* IPCP Packet Header */
-typedef struct {
+typedef struct
+{
   u8 code;
   u8 id;
   u16 length;
@@ -88,41 +93,42 @@ typedef struct {
 
 typedef struct
 {
-  u16 type; // net order for direct send.
+  u16 type;   // net order for direct send.
   u16 length; // net order for direct send.
   // depend on the type and length.
   u8 value[ETH_JUMBO_LEN];
 } pppoe_tag_t;
 
-#define PPPOE_VER_TYPE 0x11
-#define PPPOE_PADI 0x9
-#define PPPOE_PADO 0x7
-#define PPPOE_PADR 0x19
-#define PPPOE_PADS 0x65
-#define PPPOE_PADT 0xa7
+#define PPPOE_VER_TYPE	   0x11
+#define PPPOE_PADI	   0x9
+#define PPPOE_PADO	   0x7
+#define PPPOE_PADR	   0x19
+#define PPPOE_PADS	   0x65
+#define PPPOE_PADT	   0xa7
 #define PPPOE_SESSION_DATA 0x0
 
-typedef void parse_func(u16 type, u16 len, unsigned char *data, void *extra);
+typedef void parse_func (u16 type, u16 len, unsigned char *data, void *extra);
 
 // PPPoE Tags
-#define PPPOE_TAG_END_OF_LIST        0x0000
-#define PPPOE_TAG_SERVICE_NAME       0x0101
-#define PPPOE_TAG_AC_NAME            0x0102
-#define PPPOE_TAG_HOST_UNIQ          0x0103
-#define PPPOE_TAG_AC_COOKIE          0x0104
+#define PPPOE_TAG_END_OF_LIST	     0x0000
+#define PPPOE_TAG_SERVICE_NAME	     0x0101
+#define PPPOE_TAG_AC_NAME	     0x0102
+#define PPPOE_TAG_HOST_UNIQ	     0x0103
+#define PPPOE_TAG_AC_COOKIE	     0x0104
 #define PPPOE_TAG_VENDOR_SPECIFIC    0x0105
 #define PPPOE_TAG_RELAY_SESSION_ID   0x0110
 #define PPPOE_TAG_PPP_MAX_PAYLOAD    0x0120
 #define PPPOE_TAG_SERVICE_NAME_ERROR 0x0201
 #define PPPOE_TAG_AC_SYSTEM_ERROR    0x0202
-#define PPPOE_TAG_GENERIC_ERROR      0x0203
+#define PPPOE_TAG_GENERIC_ERROR	     0x0203
 
-#define foreach_pppoe_client_state               \
-_(PPPOE_CLIENT_DISCOVERY)                        \
-_(PPPOE_CLIENT_REQUEST)                          \
-_(PPPOE_CLIENT_SESSION)
+#define foreach_pppoe_client_state                                                                 \
+  _ (PPPOE_CLIENT_DISCOVERY)                                                                       \
+  _ (PPPOE_CLIENT_REQUEST)                                                                         \
+  _ (PPPOE_CLIENT_SESSION)
 
-typedef enum {
+typedef enum
+{
 #define _(a) a,
   foreach_pppoe_client_state
 #undef _
@@ -146,7 +152,7 @@ typedef struct
   /* Send next pkt at this time */
   f64 next_transmit;
   u8 ac_mac_address[6];
-  u8 *ac_name;  /* AC-Name from PADO */
+  u8 *ac_name; /* AC-Name from PADO */
   u16 session_id;
 
   /* pppox intf index */
@@ -191,59 +197,55 @@ typedef struct
 
 typedef enum
 {
-#define pppoeclient_error(n,s) PPPOECLIENT_ERROR_##n,
+#define pppoeclient_error(n, s) PPPOECLIENT_ERROR_##n,
 #include <pppoeclient/pppoeclient_error.def>
 #undef pppoeclient_error
   PPPOECLIENT_N_ERROR,
 } pppoeclient_input_error_t;
 
-#define foreach_pppoeclient_discovery_input_next       \
-_(DROP, "error-drop")
+#define foreach_pppoeclient_discovery_input_next _ (DROP, "error-drop")
 
 typedef enum
 {
-#define _(s,n) PPPOECLIENT_DISCOVERY_INPUT_NEXT_##s,
+#define _(s, n) PPPOECLIENT_DISCOVERY_INPUT_NEXT_##s,
   foreach_pppoeclient_discovery_input_next
 #undef _
     PPPOECLIENT_DISCOVERY_INPUT_N_NEXT,
 } pppoeclient_discovery_input_next_t;
 
-#define foreach_pppoeclient_session_input_next       \
-_(IP4_INPUT, "ip4-input") \
-_(IP6_INPUT, "ip6-input") \
-_(PPPOX_INPUT, "pppox-input")                   \
-_(DROP, "error-drop")
+#define foreach_pppoeclient_session_input_next                                                     \
+  _ (IP4_INPUT, "ip4-input")                                                                       \
+  _ (IP6_INPUT, "ip6-input")                                                                       \
+  _ (PPPOX_INPUT, "pppox-input")                                                                   \
+  _ (DROP, "error-drop")
 
 typedef enum
 {
-#define _(s,n) PPPOECLIENT_SESSION_INPUT_NEXT_##s,
+#define _(s, n) PPPOECLIENT_SESSION_INPUT_NEXT_##s,
   foreach_pppoeclient_session_input_next
 #undef _
     PPPOECLIENT_SESSION_INPUT_N_NEXT,
 } pppoeclient_session_input_next_t;
 
-#define foreach_pppoeclient_session_output_next       \
-_(DROP, "error-drop")
+#define foreach_pppoeclient_session_output_next _ (DROP, "error-drop")
 
 typedef enum
 {
-#define _(s,n) PPPOECLIENT_SESSION_OUTPUT_NEXT_##s,
+#define _(s, n) PPPOECLIENT_SESSION_OUTPUT_NEXT_##s,
   foreach_pppoeclient_session_output_next
 #undef _
     PPPOECLIENT_SESSION_OUTPUT_N_NEXT,
 } pppoeclient_session_output_next_t;
 
-#define MTU 1500
-#define MTU_BUFFERS ((MTU + VLIB_BUFFER_DATA_SIZE - 1) / VLIB_BUFFER_DATA_SIZE)
+#define MTU		     1500
+#define MTU_BUFFERS	     ((MTU + VLIB_BUFFER_DATA_SIZE - 1) / VLIB_BUFFER_DATA_SIZE)
 #define NUM_BUFFERS_TO_ALLOC 32
 
 /*
  * The size of pppoe client table
  */
 #define PPPOE_CLIENT_NUM_BUCKETS 128
-#define PPPOE_CLIENT_MEMORY_SIZE 64<<20
-
-/* *INDENT-OFF* */
+#define PPPOE_CLIENT_MEMORY_SIZE 64 << 20
 /*
  * The PPPoE client key is the sw if index and host uniq
  */
@@ -264,9 +266,6 @@ typedef struct
     u64 raw;
   };
 } pppoe_client_key_t;
-/* *INDENT-ON* */
-
-/* *INDENT-OFF* */
 /*
  * The PPPoE client results
  */
@@ -281,12 +280,10 @@ typedef struct
     } fields;
     u64 raw;
   };
-}  pppoe_client_result_t;
-/* *INDENT-ON* */
-
-/* *INDENT-OFF* */
+} pppoe_client_result_t;
 /*
- * The PPPoE client session key is the session id
+ * The PPPoE client session key tracks ingress interface + peer AC MAC
+ * + PPPoE session id so multiple sessions do not alias each other.
  */
 typedef struct
 {
@@ -296,27 +293,22 @@ typedef struct
     {
       u16 session_id;
       u16 rsv0;
-      u32 rsv1;
+      u32 sw_if_index;
+      u8 ac_mac[6];
+      u16 rsv1;
     } fields;
-    struct
-    {
-      u32 w0;
-      u32 w1;
-    } words;
-    u64 raw;
+    u64 raw[2];
   };
 } pppoe_client_session_key_t;
-/* *INDENT-ON* */
-
 typedef struct
 {
   /* For DP: vector of clients, */
   pppoe_client_t *clients;
 
   /* For CP:  vector of CP path */
-  BVT (clib_bihash) client_table;
+  clib_bihash_8_8_t client_table;
   // Session hash table share same lookup result structure.
-  BVT (clib_bihash) session_table;
+  clib_bihash_16_8_t session_table;
 
   /* Mapping from pppox sw_if_index to client index */
   u32 *client_index_by_pppox_sw_if_index;
@@ -333,7 +325,7 @@ typedef struct
 
 } pppoeclient_main_t;
 
-#define EVENT_PPPOE_CLIENT_WAKEUP	1
+#define EVENT_PPPOE_CLIENT_WAKEUP 1
 
 extern pppoeclient_main_t pppoeclient_main;
 
@@ -346,9 +338,9 @@ typedef struct
   u8 is_add;
   u32 sw_if_index;
   u32 host_uniq;
-} vnet_pppoe_add_del_client_args_t;
+} vnet_pppoeclient_add_del_args_t;
 
-int vnet_pppoe_add_del_client (vnet_pppoe_add_del_client_args_t *, u32 *);
+int vnet_pppoeclient_add_del (vnet_pppoeclient_add_del_args_t *, u32 *);
 
 int consume_pppoe_discovery_pkt (u32, vlib_buffer_t *, pppoe_header_t *);
 
@@ -357,131 +349,210 @@ pppoeclient_make_key (u32 sw_if_index, u32 host_uniq)
 {
   u64 temp;
 
-  temp = ((u64)sw_if_index) << 32 | host_uniq;
+  temp = ((u64) sw_if_index) << 32 | host_uniq;
 
   return temp;
 }
 
 static_always_inline void
-pppoeclient_lookup_1 (BVT (clib_bihash) * client_table,
-                      u32 sw_if_index,
-                      u32 host_uniq,
-                      pppoe_client_result_t * result0)
+pppoeclient_lookup_1 (clib_bihash_8_8_t *client_table, u32 sw_if_index, u32 host_uniq,
+		      pppoe_client_result_t *result0)
 {
   pppoe_client_key_t key0;
   /* set up key */
   key0.raw = pppoeclient_make_key (sw_if_index, host_uniq);
 
   /* Do a regular client table lookup */
-  BVT (clib_bihash_kv) kv;
+  clib_bihash_kv_8_8_t kv;
 
   kv.key = key0.raw;
   kv.value = ~0ULL;
-  BV (clib_bihash_search_inline) (client_table, &kv);
+  clib_bihash_search_inline_8_8 (client_table, &kv);
   result0->raw = kv.value;
 }
 
 static_always_inline void
-pppoeclient_update_1 (BVT (clib_bihash) * client_table,
-                      u32 sw_if_index,
-                      u32 host_uniq,
-                      pppoe_client_result_t * result0)
+pppoeclient_update_1 (clib_bihash_8_8_t *client_table, u32 sw_if_index, u32 host_uniq,
+		      pppoe_client_result_t *result0)
 {
   pppoe_client_key_t key0;
   /* set up key */
   key0.raw = pppoeclient_make_key (sw_if_index, host_uniq);
 
   /* Update the entry */
-  BVT (clib_bihash_kv) kv;
+  clib_bihash_kv_8_8_t kv;
 
   kv.key = key0.raw;
   kv.value = result0->raw;
-  BV (clib_bihash_add_del) (client_table, &kv, 1 /* is_add */ );
-
+  clib_bihash_add_del_8_8 (client_table, &kv, 1 /* is_add */);
 }
 
 static_always_inline void
-pppoeclient_delete_1 (BVT (clib_bihash) * client_table,
-                      u32 sw_if_index,
-                      u32 host_uniq)
+pppoeclient_delete_1 (clib_bihash_8_8_t *client_table, u32 sw_if_index, u32 host_uniq)
 {
   pppoe_client_key_t key0;
   /* set up key */
   key0.raw = pppoeclient_make_key (sw_if_index, host_uniq);
 
   /* Update the entry */
-  BVT (clib_bihash_kv) kv;
+  clib_bihash_kv_8_8_t kv;
 
   kv.key = key0.raw;
-  BV (clib_bihash_add_del) (client_table, &kv, 0 /* is_add */ );
-}
-
-always_inline u64
-pppoeclient_make_session_key (u16 session_id)
-{
-  u64 temp;
-
-  temp = ((u64)0) << 48 | session_id;
-
-  return temp;
+  clib_bihash_add_del_8_8 (client_table, &kv, 0 /* is_add */);
 }
 
 static_always_inline void
-pppoeclient_lookup_session_1 (BVT (clib_bihash) * session_table,
-                              u16 session_id,
-                              pppoe_client_result_t * result0)
+pppoeclient_make_session_key (pppoe_client_session_key_t *key0, u32 sw_if_index, const u8 *ac_mac,
+			      u16 session_id)
+{
+  clib_memset (key0, 0, sizeof (*key0));
+  key0->fields.session_id = session_id;
+  key0->fields.sw_if_index = sw_if_index;
+  clib_memcpy_fast (key0->fields.ac_mac, ac_mac, sizeof (key0->fields.ac_mac));
+}
+
+static_always_inline void
+pppoeclient_lookup_session_1 (clib_bihash_16_8_t *session_table, u32 sw_if_index, const u8 *ac_mac,
+			      u16 session_id, pppoe_client_result_t *result0)
 {
   pppoe_client_session_key_t key0;
   /* set up key */
-  key0.raw = pppoeclient_make_session_key (session_id);
+  pppoeclient_make_session_key (&key0, sw_if_index, ac_mac, session_id);
 
   /* Do a regular client table lookup */
-  BVT (clib_bihash_kv) kv;
+  clib_bihash_kv_16_8_t kv;
 
-  kv.key = key0.raw;
+  kv.key[0] = key0.raw[0];
+  kv.key[1] = key0.raw[1];
   kv.value = ~0ULL;
-  BV (clib_bihash_search_inline) (session_table, &kv);
+  clib_bihash_search_inline_16_8 (session_table, &kv);
   result0->raw = kv.value;
 }
 
 static_always_inline void
-pppoeclient_update_session_1 (BVT (clib_bihash) * session_table,
-                              u16 session_id,
-                              pppoe_client_result_t * result0)
+pppoeclient_update_session_1 (clib_bihash_16_8_t *session_table, u32 sw_if_index, const u8 *ac_mac,
+			      u16 session_id, pppoe_client_result_t *result0)
 {
   pppoe_client_session_key_t key0;
   /* set up key */
-  key0.raw = pppoeclient_make_session_key (session_id);
+  pppoeclient_make_session_key (&key0, sw_if_index, ac_mac, session_id);
 
   /* Update the entry */
-  BVT (clib_bihash_kv) kv;
+  clib_bihash_kv_16_8_t kv;
 
-  kv.key = key0.raw;
+  kv.key[0] = key0.raw[0];
+  kv.key[1] = key0.raw[1];
   kv.value = result0->raw;
-  BV (clib_bihash_add_del) (session_table, &kv, 1 /* is_add */ );
-
+  clib_bihash_add_del_16_8 (session_table, &kv, 1 /* is_add */);
 }
 
 static_always_inline void
-pppoeclient_delete_session_1 (BVT (clib_bihash) * session_table,
-                              u16 session_id)
+pppoeclient_delete_session_1 (clib_bihash_16_8_t *session_table, u32 sw_if_index, const u8 *ac_mac,
+			      u16 session_id)
 {
   pppoe_client_session_key_t key0;
   /* set up key */
-  key0.raw = pppoeclient_make_session_key (session_id);
+  pppoeclient_make_session_key (&key0, sw_if_index, ac_mac, session_id);
 
   /* Update the entry */
-  BVT (clib_bihash_kv) kv;
+  clib_bihash_kv_16_8_t kv;
 
-  kv.key = key0.raw;
-  BV (clib_bihash_add_del) (session_table, &kv, 0 /* is_add */ );
+  kv.key[0] = key0.raw[0];
+  kv.key[1] = key0.raw[1];
+  clib_bihash_add_del_16_8 (session_table, &kv, 0 /* is_add */);
+}
 
+static_always_inline pppoe_client_t *
+pppoeclient_get_client_by_pppox_sw_if_index (pppoeclient_main_t *pem, u32 pppox_sw_if_index,
+					     u32 *client_index)
+{
+  u32 index;
+
+  if (client_index)
+    *client_index = ~0;
+
+  if (pppox_sw_if_index == ~0 ||
+      pppox_sw_if_index >= vec_len (pem->client_index_by_pppox_sw_if_index))
+    return 0;
+
+  index = pem->client_index_by_pppox_sw_if_index[pppox_sw_if_index];
+  if (index == ~0 || pool_is_free_index (pem->clients, index))
+    return 0;
+
+  if (client_index)
+    *client_index = index;
+
+  return pool_elt_at_index (pem->clients, index);
+}
+
+static_always_inline u16
+pppoeclient_get_l2_encap_len (vnet_main_t *vnm, u32 sw_if_index)
+{
+  vnet_sw_interface_t *sw = vnet_get_sw_interface (vnm, sw_if_index);
+
+  if (sw->type == VNET_SW_INTERFACE_TYPE_SUB && sw->sub.eth.flags.one_tag == 1)
+    return sizeof (ethernet_header_t) + sizeof (ethernet_vlan_header_t);
+
+  return sizeof (ethernet_header_t);
+}
+
+static_always_inline pppoe_header_t *
+pppoeclient_push_l2_header (vnet_main_t *vnm, u32 sw_if_index, vlib_buffer_t *b, u16 ethertype,
+			    const u8 *src_address, const u8 *dst_address)
+{
+  ethernet_header_t *eth;
+  ethernet_vlan_header_t *vlan;
+  vnet_sw_interface_t *sw = vnet_get_sw_interface (vnm, sw_if_index);
+
+  vlib_buffer_advance (b, -((word) pppoeclient_get_l2_encap_len (vnm, sw_if_index)));
+  eth = vlib_buffer_get_current (b);
+
+  clib_memcpy (eth->src_address, src_address, sizeof (eth->src_address));
+  clib_memcpy (eth->dst_address, dst_address, sizeof (eth->dst_address));
+
+  if (sw->type == VNET_SW_INTERFACE_TYPE_SUB && sw->sub.eth.flags.one_tag == 1)
+    {
+      vlan = (ethernet_vlan_header_t *) (eth + 1);
+      eth->type = clib_host_to_net_u16 (ETHERNET_TYPE_VLAN);
+      vlan->priority_cfi_and_id = clib_host_to_net_u16 (sw->sub.eth.outer_vlan_id);
+      vlan->type = clib_host_to_net_u16 (ethertype);
+      return (pppoe_header_t *) (vlan + 1);
+    }
+
+  eth->type = clib_host_to_net_u16 (ethertype);
+  return (pppoe_header_t *) (eth + 1);
+}
+
+static_always_inline u8
+pppoeclient_get_l2_info (vlib_buffer_t *b, ethernet_header_t **eth_hdr, pppoe_header_t **pppoe_hdr,
+			 u16 *ethertype, u16 *l2_hdr_len)
+{
+  ethernet_header_t *eth = vlib_buffer_get_current (b);
+  u16 type = clib_net_to_host_u16 (eth->type);
+  u16 hdr_len = sizeof (*eth);
+
+  if (type == ETHERNET_TYPE_VLAN)
+    {
+      ethernet_vlan_header_t *vlan = (ethernet_vlan_header_t *) (eth + 1);
+      type = clib_net_to_host_u16 (vlan->type);
+      hdr_len += sizeof (*vlan);
+    }
+
+  if (eth_hdr)
+    *eth_hdr = eth;
+  if (pppoe_hdr)
+    *pppoe_hdr = (pppoe_header_t *) (((u8 *) eth) + hdr_len);
+  if (ethertype)
+    *ethertype = type;
+  if (l2_hdr_len)
+    *l2_hdr_len = hdr_len;
+
+  return type == ETHERNET_TYPE_PPPOE_DISCOVERY || type == ETHERNET_TYPE_PPPOE_SESSION;
 }
 
 #endif /* _PPPOE_H */
 
 /*
- * fd.io coding-style-patch-verification: ON
  *
  * Local Variables:
  * eval: (c-set-style "gnu")
