@@ -251,7 +251,7 @@ Notes:
 - [FD.io VPP](https://github.com/FDio/vpp)
 - [Hi-Jiajun/vpp](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient)
 - [pppd](https://ppp.samba.org/)
-- [RaydoNetworks/ppp-vpp](https://github.com/pppoe/ppp-vpp)
+- [raydonetworks/vpp-pppoeclient](https://github.com/raydonetworks/vpp-pppoeclient) - initial public repository of this plugin
 - [RFC 2516](https://www.rfc-editor.org/rfc/rfc2516)
 - [RFC 1661](https://www.rfc-editor.org/rfc/rfc1661)
 - [RFC 1332](https://www.rfc-editor.org/rfc/rfc1332)
