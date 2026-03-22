@@ -1,50 +1,52 @@
-# VPP PPPoE Client Plugin
+# 🚀 VPP PPPoE Client Plugin
 
 [![Stars](https://img.shields.io/github/stars/Hi-Jiajun/vpp-pppoeclient?style=for-the-badge&logo=github&color=f4c542)](https://github.com/Hi-Jiajun/vpp-pppoeclient/stargazers)
 [![Forks](https://img.shields.io/github/forks/Hi-Jiajun/vpp-pppoeclient?style=for-the-badge&logo=github&color=8cc751)](https://github.com/Hi-Jiajun/vpp-pppoeclient/network/members)
 [![Issues](https://img.shields.io/github/issues/Hi-Jiajun/vpp-pppoeclient?style=for-the-badge&logo=github&color=ea6a5a)](https://github.com/Hi-Jiajun/vpp-pppoeclient/issues)
 [![License](https://img.shields.io/github/license/Hi-Jiajun/vpp-pppoeclient?style=for-the-badge&color=5b9bd5)](./LICENSE)
 
-[Chinese README](./README_CN.md)
+> A standalone mirror of the `pppoeclient` and `pppox` plugins from
+> [`Hi-Jiajun/vpp`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient), focused on PPPoE
+> client support for FD.io VPP.
 
-This repository is the standalone mirror of the `pppoeclient` and `pppox` plugins from
-[`Hi-Jiajun/vpp`](https://github.com/Hi-Jiajun/vpp) on branch
-[`feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient).
-It is intended for users who want to review, track, or vendor only the PPPoE client related
-plugin sources instead of the full VPP tree.
+🌏 [Chinese README](./README_CN.md)
 
-## Overview
+---
+
+## ✨ Overview
+
+This repository extracts the PPPoE client related plugins from the upstream VPP fork so they can be
+reviewed, synced, and vendored independently from the full VPP source tree.
 
 The implementation is split into two plugins:
 
 | Plugin | Responsibility |
 | --- | --- |
-| `pppoeclient` | PPPoE discovery, session lifecycle, session lookup, data-plane encapsulation/decapsulation |
+| `pppoeclient` | PPPoE discovery, session lifecycle, session lookup, data-plane encapsulation and decapsulation |
 | `pppox` | PPP control plane, authentication, IPv4/IPv6 negotiation, and pppd-derived protocol handling |
 
-Together they provide a complete PPPoE client inside VPP user space.
+Together they provide a complete PPPoE client running inside VPP user space.
 
-## What Is In This Version
+## 📌 Current Sync Status
 
-This standalone repository currently tracks the plugin content from:
+- 🌿 Upstream branch: `feat/pr-pppoeclient`
+- 🔖 Synced upstream commit: `ee002b08dffaed8cf94a3b1f193619950ebbfca9`
+- 🧾 This repo commit that synced and refreshed docs: `1db4da9`
 
-- Upstream branch: `feat/pr-pppoeclient`
-- Synced commit: `ee002b08dffaed8cf94a3b1f193619950ebbfca9`
+## 🧩 Highlights
 
-Highlights of the current codebase:
+- 🔄 Full PPPoE lifecycle: `PADI`, `PADO`, `PADR`, `PADS`, `PADT`
+- 🔐 PAP and CHAP authentication through the integrated `pppox` control plane
+- 🌐 IPv4 via IPCP and IPv6 via IPv6CP
+- 🛣️ Separate `add-default-route4` and `add-default-route6` controls
+- 🧭 Peer DNS import through IPCP into `/etc/ppp/resolv.conf`
+- 🔁 Live sync for auth, DNS, and route settings after session creation
+- 🧪 Rich `show pppoe client detail` output for runtime inspection
+- 🧱 Session lookup keyed by ingress interface + AC MAC + PPPoE session ID
+- 🏷️ VLAN sub-interface aware PPPoE L2 header handling
+- 📏 TCP MSS clamp on PPP session traffic
 
-- Full PPPoE discovery and teardown: `PADI`, `PADO`, `PADR`, `PADS`, `PADT`
-- PAP and CHAP authentication through the integrated `pppox` control plane
-- IPv4 via IPCP and IPv6 via IPv6CP, with optional DHCPv6 / DHCPv6-PD on top
-- Separate control flags for `add-default-route4` and `add-default-route6`
-- Peer DNS import through IPCP and `/etc/ppp/resolv.conf`
-- Live sync of auth, peer DNS, and default-route settings after session creation
-- Detailed `show pppoe client detail` output including AC name, PPPoX interface, IPv4/IPv6 state, and peer DNS
-- Session lookup keyed by ingress interface + AC MAC + PPPoE session ID
-- Support for VLAN sub-interfaces when building/parsing the PPPoE L2 header
-- TCP MSS clamp on PPP session traffic in the data path
-
-## Repository Layout
+## 🗂️ Repository Layout
 
 ```text
 src/plugins/
@@ -74,16 +76,16 @@ src/plugins/
         `-- ...
 ```
 
-## Requirements
+## 🛠️ Requirements
 
 - Linux
-- A VPP source tree, tested with VPP `26.02`
+- A VPP source tree, tested mainly with VPP `26.02`
 - `cmake`, `ninja`, and a working compiler toolchain
-- A NIC or lower interface suitable for PPPoE access
+- A lower interface suitable for PPPoE access
 
-## Build
+## 📦 Build
 
-### Option 1: Build from the full VPP fork
+### Option 1: build from the full VPP fork
 
 ```bash
 git clone https://github.com/Hi-Jiajun/vpp.git -b feat/pr-pppoeclient
@@ -92,7 +94,7 @@ make install-dep
 make build-release
 ```
 
-### Option 2: Vendor these plugins into an existing VPP tree
+### Option 2: vendor these plugins into an existing VPP tree
 
 ```bash
 git clone https://github.com/Hi-Jiajun/vpp-pppoeclient.git
@@ -102,7 +104,7 @@ cd /path/to/vpp
 ninja -C build-root/build-vpp-native/vpp pppox_plugin pppoeclient_plugin vpp vppctl
 ```
 
-## Run VPP
+## ▶️ Run VPP
 
 ```bash
 sudo vpp unix { nodaemon cli-listen /tmp/vpp-cli.sock } \
@@ -113,7 +115,7 @@ sudo vpp unix { nodaemon cli-listen /tmp/vpp-cli.sock } \
   }
 ```
 
-## Quick Start
+## ⚡ Quick Start
 
 ```bash
 # 1. Bring the lower interface up
@@ -128,10 +130,10 @@ set pppoe client 0 username YOUR_USER password YOUR_PASS \
   mtu 1492 mru 1492 use-peer-dns add-default-route
 ```
 
-If your access network uses a VLAN sub-interface, create and bring up the VPP sub-interface first,
-then bind the PPPoE client to that sub-interface's `sw-if-index`.
+💡 If your access network uses a VLAN sub-interface, create and enable that VPP sub-interface
+first, then bind the PPPoE client to its `sw-if-index`.
 
-## CLI Reference
+## 🧭 CLI Reference
 
 ### `pppoeclient`
 
@@ -144,7 +146,7 @@ set pppoe client <index> username <user> password <pass> \
   [use-peer-dns] [add-default-route | add-default-route4 | add-default-route6]
 ```
 
-`set pppoe client` options:
+#### `set pppoe client` options
 
 | Option | Meaning |
 | --- | --- |
@@ -159,7 +161,8 @@ set pppoe client <index> username <user> password <pass> \
 Notes:
 
 - `use-peer-route` is still accepted as a compatibility alias for enabling both default routes.
-- Re-running `set pppoe client ...` updates the existing client and attempts to sync the live PPPoX session.
+- Re-running `set pppoe client ...` updates the existing client and attempts to sync the live
+  PPPoX session.
 
 ### `pppox`
 
@@ -169,29 +172,29 @@ The control-plane plugin also exposes a direct auth CLI:
 pppox set auth sw-if-index <nn> username <string> password <string>
 ```
 
-In normal PPPoE client usage you usually configure credentials through `set pppoe client`.
+In normal PPPoE client usage, credentials are usually configured through `set pppoe client`.
 
-## Example Flows
+## 🧪 Common Flows
 
-### IPv4 + IPv6 default routes
+### Dual-stack default routes
 
 ```bash
 set pppoe client 0 username USER password PASS add-default-route
 ```
 
-### IPv4 only
+### IPv4 default route only
 
 ```bash
 set pppoe client 0 username USER password PASS add-default-route4
 ```
 
-### IPv6 only
+### IPv6 default route only
 
 ```bash
 set pppoe client 0 username USER password PASS add-default-route6
 ```
 
-### Use DHCPv6-PD after PPP comes up
+### DHCPv6-PD after PPP is up
 
 ```bash
 dhcp6 client pppox0
@@ -199,7 +202,7 @@ dhcp6 pd client pppox0 prefix group wan-pd
 set ip6 address pppox0 prefix group wan-pd ::1/64
 ```
 
-## Operational Checks
+## 🔍 Operational Checks
 
 Useful commands:
 
@@ -211,33 +214,39 @@ show ip fib table 0
 show ip6 fib
 ```
 
-`show pppoe client detail` now includes:
+`show pppoe client detail` currently includes:
 
 - client state and PPPoE session ID
 - learned AC MAC and AC-Name
 - bound PPPoX interface and PPP unit
-- negotiated IPv4 local/peer addresses
-- IPv6 local/peer information and source
+- negotiated IPv4 local and peer addresses
+- IPv6 local and peer information plus source information
 - peer DNS addresses
-- active auth and route-related flags
+- active auth, MTU/MRU, timeout, and route-related flags
 
-## Binary API
+## 🔌 Binary API
 
-Current API files in this repository:
+Current API definition files:
 
 - `src/plugins/pppoeclient/pppoeclient.api`
 - `src/plugins/pppox/pppox.api`
 
-The currently exposed messages are intentionally small:
+Defined request and reply messages include:
 
 - `pppoeclient_add_del`
+- `pppoeclient_add_del_reply`
 - `pppoeclient_dump`
+- `pppoeclient_details`
 - `pppox_set_auth`
+- `pppox_set_auth_reply`
 
-The `pppoeclient_dump` reply currently returns the client `sw_if_index` and `host_uniq`.
-For richer operational state, the CLI output is still the most useful interface.
+Notes:
 
-## References
+- `pppoeclient_dump` triggers `pppoeclient_details` messages.
+- `pppoeclient_details` currently carries `sw_if_index` and `host_uniq`.
+- For richer operational state, the CLI output is still the most useful interface.
+
+## 📚 References
 
 - [FD.io VPP](https://github.com/FDio/vpp)
 - [Hi-Jiajun/vpp](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient)
@@ -248,7 +257,7 @@ For richer operational state, the CLI output is still the most useful interface.
 - [RFC 1332](https://www.rfc-editor.org/rfc/rfc1332)
 - [RFC 5072](https://www.rfc-editor.org/rfc/rfc5072)
 
-## Support
+## 💖 Support
 
 If this project helps you, support is appreciated.
 
@@ -256,7 +265,7 @@ If this project helps you, support is appreciated.
 | --- | --- |
 | <img src="https://Hi-Jiajun.github.io/picx-images-hosting/wechat_qrcode.icohq9bcf.webp" height="260" alt="WeChat Pay QR code"> | <img src="https://Hi-Jiajun.github.io/picx-images-hosting/alipay_qrcode.7p45v27tjq.webp" height="260" alt="Alipay QR code"> |
 
-## License
+## 📄 License
 
 This project is licensed under the [Apache License 2.0](./LICENSE).
 
