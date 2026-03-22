@@ -50,10 +50,49 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          git archive \
-            --format=zip \
-            --output="dist/${{ steps.meta.outputs.asset_name }}" \
-            "${GITHUB_SHA}"
+          package_root="dist/package"
+          mkdir -p "${package_root}/src/plugins"
+
+          cp -R src/plugins/pppoeclient "${package_root}/src/plugins/"
+          cp -R src/plugins/pppox "${package_root}/src/plugins/"
+          cp LICENSE "${package_root}/"
+
+          cat > "${package_root}/README.md" <<EOF
+          # VPP PPPoE Client Release Package
+
+          This package contains only the files needed to integrate the PPPoE client plugins into a VPP source tree:
+
+          - src/plugins/pppoeclient
+          - src/plugins/pppox
+          - LICENSE
+
+          Source repository:
+          - https://github.com/Hi-Jiajun/vpp-pppoeclient
+
+          Source commit:
+          - ${GITHUB_SHA}
+
+          Upstream branch:
+          - feat/pr-pppoeclient
+
+          Usage:
+          1. Copy \`src/plugins/pppoeclient\` into your VPP source tree under \`src/plugins/\`
+          2. Copy \`src/plugins/pppox\` into your VPP source tree under \`src/plugins/\`
+          3. Build the plugins in your VPP tree, for example:
+
+             \`\`\`bash
+             ninja -C build-root/build-vpp-native/vpp pppox_plugin pppoeclient_plugin vpp vppctl
+             \`\`\`
+
+          Notes:
+          - This zip intentionally excludes repository automation files and documentation not required for VPP integration
+          - For full documentation, see the repository README on GitHub
+          EOF
+
+          (
+            cd "${package_root}"
+            zip -qr "../${{ steps.meta.outputs.asset_name }}" .
+          )
 
       - name: Check whether release already exists
         id: exists

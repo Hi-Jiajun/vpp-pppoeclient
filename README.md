@@ -111,6 +111,9 @@ chmod +x ./scripts/sync-from-upstream.sh
 - 同一个提交如果已经发过 Release，就不会重复创建
 - Release 会自动指向对应提交并附带自动生成的说明
 - Release 会额外上传一个 `.zip` 压缩包，例如 `vpp-pppoeclient-da21b11.zip`
+- 这个 `.zip` 只包含 VPP 集成所需文件：
+  `src/plugins/pppoeclient`、`src/plugins/pppox`、`LICENSE`
+- `.zip` 包内会附带一份 `README.md`，说明如何拷贝到 VPP 源码树并编译
 
 ## 🧩 当前版本亮点
 
