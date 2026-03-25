@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VPP_REPO_URL="https://github.com/Hi-Jiajun/vpp.git"
-VPP_REF="v26.02-pppoe-v1.0"
+VPP_REPO_URL="https://github.com/FDio/vpp.git"
+VPP_REF="v26.02"
 PACKAGE_TYPE=""
 PACKAGE_ARCH=""
 DISTRO_ID=""

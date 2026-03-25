@@ -103,9 +103,9 @@ chmod +x ./scripts/sync-from-upstream.sh
 - `README_EN.md`
 - `scripts/**`
 
-当前预编译包默认针对稳定 VPP 参考版本：
+当前预编译包默认针对官方 `FDio/vpp` 稳定 tag：
 
-- `v26.02-pppoe-v1.0`
+- `v26.02`
 
 发布规则：
 
@@ -119,6 +119,10 @@ chmod +x ./scripts/sync-from-upstream.sh
   - Ubuntu 24.04
   - Debian 12
   - Rocky Linux 9
+- 预编译 workflow 拉取的是官方仓库：
+  - `https://github.com/FDio/vpp.git`
+- 预编译 workflow 默认参考的官方 tag 是：
+  - `v26.02`
 - 这些包包含预编译插件二进制和 API JSON：
   - `pppoeclient_plugin.so`
   - `pppox_plugin.so`

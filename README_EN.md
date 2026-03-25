@@ -104,9 +104,9 @@ It creates a GitHub Release automatically when `master` receives project-related
 - `README_EN.md`
 - `scripts/**`
 
-The current prebuilt package target is:
+The current prebuilt package target is the official `FDio/vpp` stable tag:
 
-- `v26.02-pppoe-v1.0`
+- `v26.02`
 
 Release behavior:
 
@@ -120,6 +120,10 @@ Release behavior:
   - Ubuntu 24.04
   - Debian 12
   - Rocky Linux 9
+- the prebuilt workflow pulls from the official repository:
+  - `https://github.com/FDio/vpp.git`
+- the default official tag used for prebuilt packages is:
+  - `v26.02`
 - these packages contain prebuilt plugin binaries and API JSON files:
   - `pppoeclient_plugin.so`
   - `pppox_plugin.so`

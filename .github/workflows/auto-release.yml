@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       vpp_ref:
-        description: Stable VPP ref from Hi-Jiajun/vpp used for prebuilt packages
+        description: Stable VPP tag from official FDio/vpp used for prebuilt packages
         required: false
-        default: v26.02-pppoe-v1.0
+        default: v26.02
   push:
     branches:
       - master
@@ -26,8 +26,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  VPP_UPSTREAM_URL: https://github.com/Hi-Jiajun/vpp.git
-  DEFAULT_VPP_REF: v26.02-pppoe-v1.0
+  VPP_UPSTREAM_URL: https://github.com/FDio/vpp.git
+  DEFAULT_VPP_REF: v26.02
 
 jobs:
   build-prebuilt-packages:
