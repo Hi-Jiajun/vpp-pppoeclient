@@ -170,10 +170,11 @@ LIBROOT="${PKGROOT}${PLUGIN_LIB_DIR}"
 mkdir -p "${TOOLBIN}"
 
 if ! command -v sudo >/dev/null 2>&1; then
-  cat > "${TOOLBIN}/sudo" <<'EOF'
+  cat > "${TOOLBIN}/sudo" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
+toolbin="${TOOLBIN}"
 args=("$@")
 idx=0
 
@@ -201,7 +202,11 @@ if [[ ${#cmd[@]} -eq 0 ]]; then
   exit 0
 fi
 
-resolved_cmd="$(command -v "${cmd[0]}")"
+if [[ -x "${toolbin}/${cmd[0]}" ]]; then
+  exec "${toolbin}/${cmd[0]}" "${cmd[@]:1}"
+fi
+
+resolved_cmd="$(command -v "${cmd[0]}" || true)"
 if [[ -n "${resolved_cmd}" ]]; then
   exec "${resolved_cmd}" "${cmd[@]:1}"
 fi
