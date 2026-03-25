@@ -222,9 +222,29 @@ if [[ -n "${REAL_DNF}" ]]; then
 #!/usr/bin/env bash
 set -euo pipefail
 
+rewrite_group_args() {
+  local rewritten=()
+  local arg
+  for arg in "\$@"; do
+    if [[ "\${arg}" == "C Development Tools and Libraries" ]]; then
+      rewritten+=("Development Tools")
+    else
+      rewritten+=("\${arg}")
+    fi
+  done
+  printf '%s\n' "\${rewritten[@]}"
+}
+
 if [[ "\${1:-}" == "groupinstall" ]]; then
   shift
-  exec "${REAL_DNF}" group install "\$@"
+  mapfile -t _group_args < <(rewrite_group_args "\$@")
+  exec "${REAL_DNF}" group install "\${_group_args[@]}"
+fi
+
+if [[ "\${1:-}" == "group" && "\${2:-}" == "install" ]]; then
+  shift 2
+  mapfile -t _group_args < <(rewrite_group_args "\$@")
+  exec "${REAL_DNF}" group install "\${_group_args[@]}"
 fi
 
 exec "${REAL_DNF}" "\$@"
