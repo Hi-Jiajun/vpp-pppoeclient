@@ -271,6 +271,7 @@ fi
 
 echo "Cloning ${VPP_REPO_URL} at ${VPP_REF}"
 git clone --depth 1 --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
+git -C "${VPP_WORKTREE}" fetch --tags --force origin
 
 echo "Overlaying current plugin sources"
 rsync -a --delete "${REPO_ROOT}/src/plugins/pppoeclient/" "${VPP_WORKTREE}/src/plugins/pppoeclient/"

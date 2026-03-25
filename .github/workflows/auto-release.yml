@@ -68,7 +68,7 @@ jobs:
             skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y \
-                git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                curl openssl git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 apr-devel numactl-devel check check-devel ninja-build ccache \
                 xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
                 nasm socat subunit subunit-devel openssl-devel python3-devel \
@@ -84,8 +84,10 @@ jobs:
             make_os_version_id: ""
             skip_install_dep: "true"
             bootstrap_cmd: |
+              dnf install -y dnf-plugins-core epel-release
+              dnf config-manager --set-enabled crb || true
               dnf install -y \
-                git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                curl openssl git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 apr-devel numactl-devel check check-devel ninja-build ccache \
                 xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
                 nasm socat subunit subunit-devel openssl-devel python3-devel \
@@ -101,8 +103,10 @@ jobs:
             make_os_version_id: ""
             skip_install_dep: "true"
             bootstrap_cmd: |
+              dnf install -y dnf-plugins-core epel-release
+              dnf config-manager --set-enabled crb || true
               dnf install -y \
-                git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                curl openssl git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 apr-devel numactl-devel check check-devel ninja-build ccache \
                 xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
                 nasm socat subunit subunit-devel openssl-devel python3-devel \
