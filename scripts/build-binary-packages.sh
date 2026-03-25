@@ -195,7 +195,18 @@ while [[ ${idx} -lt ${#args[@]} ]]; do
   esac
 done
 
-exec "${args[@]:$idx}"
+cmd=("${args[@]:$idx}")
+
+if [[ ${#cmd[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+resolved_cmd="$(command -v "${cmd[0]}")"
+if [[ -n "${resolved_cmd}" ]]; then
+  exec "${resolved_cmd}" "${cmd[@]:1}"
+fi
+
+exec "${cmd[@]}"
 EOF
   chmod +x "${TOOLBIN}/sudo"
   export PATH="${TOOLBIN}:${PATH}"
