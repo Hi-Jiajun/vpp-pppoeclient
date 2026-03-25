@@ -65,11 +65,15 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: fedora
             make_os_version_id: "43"
-            skip_install_dep: "false"
+            skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y \
-                dnf5-plugins \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                apr-devel numactl-devel check check-devel ninja-build ccache \
+                xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
+                nasm socat subunit subunit-devel openssl-devel python3-devel \
+                python3-ply python3-virtualenv python3-jsonschema cmake llvm clang \
+                chrpath libffi-devel rpm-build \
                 which findutils rsync
           - distro_id: rockylinux9
             container_image: rockylinux:9
@@ -78,10 +82,15 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
-            skip_install_dep: "false"
+            skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                apr-devel numactl-devel check check-devel ninja-build ccache \
+                xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
+                nasm socat subunit subunit-devel openssl-devel python3-devel \
+                python3-ply python3-virtualenv python3-jsonschema cmake llvm clang \
+                infiniband-diags chrpath libffi-devel rpm-build \
                 which findutils rsync
           - distro_id: rhel9
             container_image: rockylinux:9
@@ -90,10 +99,15 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
-            skip_install_dep: "false"
+            skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                apr-devel numactl-devel check check-devel ninja-build ccache \
+                xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
+                nasm socat subunit subunit-devel openssl-devel python3-devel \
+                python3-ply python3-virtualenv python3-jsonschema cmake llvm clang \
+                infiniband-diags chrpath libffi-devel rpm-build \
                 which findutils rsync
     container:
       image: ${{ matrix.container_image }}

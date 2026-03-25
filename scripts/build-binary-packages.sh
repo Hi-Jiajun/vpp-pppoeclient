@@ -281,6 +281,8 @@ if [[ "${SKIP_INSTALL_DEP}" -eq 0 ]]; then
   make -C "${VPP_WORKTREE}" UNATTENDED=y SUDO= "${MAKE_ARGS[@]}" install-dep
 else
   echo "Skipping VPP top-level install-dep step"
+  mkdir -p "${VPP_WORKTREE}/build-root"
+  touch "${VPP_WORKTREE}/build-root/.deps.ok"
 fi
 
 echo "Building plugin binaries against ${VPP_REF}"
