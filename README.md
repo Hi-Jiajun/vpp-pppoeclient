@@ -134,6 +134,35 @@ chmod +x ./scripts/sync-from-upstream.sh
   - RPM 系列: `/usr/lib64/vpp_plugins`
 - 如果你不想使用预编译包，也可以直接按本文档中的源码方式拷贝到 VPP 树中编译
 
+### 预编译包安装与验证示例
+
+Debian / Ubuntu:
+
+```bash
+sudo dpkg -i vpp-pppoeclient-plugins-v26.02-ubuntu24.04.amd64.deb
+ls /usr/lib/x86_64-linux-gnu/vpp_plugins/pppoeclient_plugin.so
+ls /usr/lib/x86_64-linux-gnu/vpp_plugins/pppox_plugin.so
+ls /usr/share/vpp/api/plugins/pppoeclient.api.json
+ls /usr/share/vpp/api/plugins/pppox.api.json
+```
+
+Rocky / RPM 系列:
+
+```bash
+sudo rpm -ivh vpp-pppoeclient-plugins-v26.02-rockylinux9.x86_64.rpm
+ls /usr/lib64/vpp_plugins/pppoeclient_plugin.so
+ls /usr/lib64/vpp_plugins/pppox_plugin.so
+ls /usr/share/vpp/api/plugins/pppoeclient.api.json
+ls /usr/share/vpp/api/plugins/pppox.api.json
+```
+
+安装后可在 VPP 中做最基本检查：
+
+```bash
+show plugins
+show pppoe client
+```
+
 ## 🧩 当前版本亮点
 
 - 🔄 完整支持 `PADI`、`PADO`、`PADR`、`PADS`、`PADT`

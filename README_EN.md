@@ -135,6 +135,35 @@ Release behavior:
   - RPM-based systems: `/usr/lib64/vpp_plugins`
 - if you prefer source integration instead of prebuilt packages, the README still documents that workflow
 
+### Prebuilt Package Install and Verification Examples
+
+Debian / Ubuntu:
+
+```bash
+sudo dpkg -i vpp-pppoeclient-plugins-v26.02-ubuntu24.04.amd64.deb
+ls /usr/lib/x86_64-linux-gnu/vpp_plugins/pppoeclient_plugin.so
+ls /usr/lib/x86_64-linux-gnu/vpp_plugins/pppox_plugin.so
+ls /usr/share/vpp/api/plugins/pppoeclient.api.json
+ls /usr/share/vpp/api/plugins/pppox.api.json
+```
+
+Rocky / RPM-based systems:
+
+```bash
+sudo rpm -ivh vpp-pppoeclient-plugins-v26.02-rockylinux9.x86_64.rpm
+ls /usr/lib64/vpp_plugins/pppoeclient_plugin.so
+ls /usr/lib64/vpp_plugins/pppox_plugin.so
+ls /usr/share/vpp/api/plugins/pppoeclient.api.json
+ls /usr/share/vpp/api/plugins/pppox.api.json
+```
+
+After installation, a minimal VPP-side check is:
+
+```bash
+show plugins
+show pppoe client
+```
+
 ## 🧩 Highlights
 
 - 🔄 Full PPPoE lifecycle: `PADI`, `PADO`, `PADR`, `PADS`, `PADT`
