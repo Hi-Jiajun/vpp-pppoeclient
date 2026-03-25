@@ -103,9 +103,10 @@ chmod +x ./scripts/sync-from-upstream.sh
 - `README_EN.md`
 - `scripts/**`
 
-当前预编译包默认针对官方 `FDio/vpp` 稳定 tag：
+当前预编译包默认针对官方 `FDio/vpp` 的“最新稳定 tag”：
 
-- `v26.02`
+- workflow 会自动探测最新稳定 tag
+- 也可以在手动触发 workflow 时显式指定 `vpp_ref`
 
 发布规则：
 
@@ -121,8 +122,7 @@ chmod +x ./scripts/sync-from-upstream.sh
   - Rocky Linux 9
 - 预编译 workflow 拉取的是官方仓库：
   - `https://github.com/FDio/vpp.git`
-- 预编译 workflow 默认参考的官方 tag 是：
-  - `v26.02`
+- 预编译 workflow 在未手工指定时，会自动解析官方最新稳定 tag
 - 这些包包含预编译插件二进制和 API JSON：
   - `pppoeclient_plugin.so`
   - `pppox_plugin.so`

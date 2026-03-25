@@ -6,7 +6,7 @@ on:
       vpp_ref:
         description: Stable VPP tag from official FDio/vpp used for prebuilt packages
         required: false
-        default: v26.02
+        default: ""
   push:
     branches:
       - master
@@ -27,7 +27,6 @@ concurrency:
 
 env:
   VPP_UPSTREAM_URL: https://github.com/FDio/vpp.git
-  DEFAULT_VPP_REF: v26.02
 
 jobs:
   build-prebuilt-packages:
@@ -91,7 +90,8 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
             vpp_ref="${{ inputs.vpp_ref }}"
           else
-            vpp_ref="${DEFAULT_VPP_REF}"
+            chmod +x scripts/get-latest-fdio-stable-tag.sh
+            vpp_ref="$(./scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
           fi
           {
             echo "short_sha=${short_sha}"
@@ -142,7 +142,8 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
             vpp_ref="${{ inputs.vpp_ref }}"
           else
-            vpp_ref="${DEFAULT_VPP_REF}"
+            chmod +x scripts/get-latest-fdio-stable-tag.sh
+            vpp_ref="$(./scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
           fi
           {
             echo "tag=${release_tag}"
