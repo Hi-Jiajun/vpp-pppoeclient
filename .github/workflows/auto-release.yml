@@ -67,6 +67,7 @@ jobs:
             make_os_version_id: ""
             bootstrap_cmd: |
               dnf install -y \
+                'dnf5-command(groupinstall)' \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 which findutils rsync
           - distro_id: rockylinux9
@@ -88,6 +89,7 @@ jobs:
             make_os_id: rocky
             make_os_version_id: "9"
             bootstrap_cmd: |
+              dnf install -y dnf-plugins-core https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
               dnf install -y \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 which findutils rsync
