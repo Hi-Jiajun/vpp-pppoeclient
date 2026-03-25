@@ -373,7 +373,9 @@ If this project helps you, support is appreciated.
 
 ## 📄 License
 
-This project is licensed under the [Apache License 2.0](./LICENSE).
+The repository's original code is licensed under the [Apache License 2.0](./LICENSE).
 
-The adapted `pppd` sources under `src/plugins/pppox/pppd/` retain their original BSD-style
-license notices in the file headers.
+Third-party `pppd`-derived sources under `src/plugins/pppox/pppd/` retain their
+respective upstream licenses. That directory contains multiple licenses; refer
+to each file's SPDX identifier and header notice for the controlling terms. A
+repository summary is provided in [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).

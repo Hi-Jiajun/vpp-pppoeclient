@@ -371,6 +371,8 @@ show ip6 fib
 
 ## 📄 许可证
 
-本项目采用 [Apache License 2.0](./LICENSE)。
+本仓库自有代码采用 [Apache License 2.0](./LICENSE)。
 
-`src/plugins/pppox/pppd/` 目录下移植的 `pppd` 代码，仍保留各源文件头部中的原始 BSD 风格许可证说明。
+`src/plugins/pppox/pppd/` 目录下移植的第三方 `pppd` 代码保留其各自原始许可证；该目录包含多种许可证，
+具体以各源文件头部的 SPDX 标识和许可证说明为准。概要见
+[THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。

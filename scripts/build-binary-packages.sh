@@ -207,6 +207,7 @@ install -m 755 "${PPPOX_SO}" "${LIBROOT}/pppox_plugin.so"
 install -m 644 "${PPPOECLIENT_API_JSON}" "${APIDIR}/pppoeclient.api.json"
 install -m 644 "${PPPOX_API_JSON}" "${APIDIR}/pppox.api.json"
 install -m 644 "${REPO_ROOT}/LICENSE" "${DOCROOT}/LICENSE"
+install -m 644 "${REPO_ROOT}/THIRD_PARTY_LICENSES.md" "${DOCROOT}/THIRD_PARTY_LICENSES.md"
 
 cat > "${DOCROOT}/README.md" <<EOF
 # VPP PPPoE Client Prebuilt Plugin Package
@@ -239,6 +240,7 @@ Usage:
 Notes:
 - These are prebuilt plugin packages, not full VPP packages
 - Source-based integration remains documented in the repository README
+- See THIRD_PARTY_LICENSES.md for mixed third-party licensing in the pppd-derived sources
 EOF
 
 FPM_ARGS=(

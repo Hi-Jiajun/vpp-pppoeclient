@@ -174,7 +174,7 @@
       incurred by, or claims asserted against, such Contributor by reason
       of your accepting any such warranty or additional liability.
 
-   END OF TERMS AND CONDITIONS
+END OF TERMS AND CONDITIONS
 
    Copyright 2017 RaydoNetworks.
    Copyright 2026 Hi-Jiajun.
@@ -190,3 +190,16 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+Repository notice
+-----------------
+
+This repository contains mixed-license source code.
+
+- Files that carry `SPDX-License-Identifier: Apache-2.0` are covered by the
+  Apache License 2.0 text in this file.
+- Third-party `pppd`-derived sources under `src/plugins/pppox/pppd/` retain
+  their respective upstream licenses and notices.
+
+See `THIRD_PARTY_LICENSES.md` for a repository-specific summary of the
+third-party licensing present in `src/plugins/pppox/pppd/`.
