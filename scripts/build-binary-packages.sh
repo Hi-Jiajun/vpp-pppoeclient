@@ -134,11 +134,23 @@ mkdir -p "${OUTPUT_DIR}"
 WORK_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/vpp-prebuilt.XXXXXX")"
 trap 'rm -rf "${WORK_ROOT}"' EXIT
 
+TOOLBIN="${WORK_ROOT}/toolbin"
 VPP_WORKTREE="${WORK_ROOT}/vpp"
 PKGROOT="${WORK_ROOT}/pkgroot"
 DOCROOT="${PKGROOT}/usr/share/doc/${PACKAGE_NAME}"
 APIDIR="${PKGROOT}/usr/share/vpp/api/plugins"
 LIBROOT="${PKGROOT}${PLUGIN_LIB_DIR}"
+
+mkdir -p "${TOOLBIN}"
+
+if ! command -v sudo >/dev/null 2>&1; then
+  cat > "${TOOLBIN}/sudo" <<'EOF'
+#!/usr/bin/env bash
+exec "$@"
+EOF
+  chmod +x "${TOOLBIN}/sudo"
+  export PATH="${TOOLBIN}:${PATH}"
+fi
 
 echo "Cloning ${VPP_REPO_URL} at ${VPP_REF}"
 git clone --depth 1 --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"

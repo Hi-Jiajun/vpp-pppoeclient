@@ -44,7 +44,7 @@ jobs:
             bootstrap_cmd: |
               apt-get update
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                git ca-certificates curl ruby ruby-dev build-essential rsync
+                git ca-certificates ruby ruby-dev build-essential rsync
           - distro_id: debian12
             container_image: debian:12
             package_type: deb
@@ -53,7 +53,7 @@ jobs:
             bootstrap_cmd: |
               apt-get update
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
-                git ca-certificates curl ruby ruby-dev build-essential rsync
+                git ca-certificates ruby ruby-dev build-essential rsync
           - distro_id: rockylinux9
             container_image: rockylinux:9
             package_type: rpm
@@ -61,7 +61,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             bootstrap_cmd: |
               dnf install -y \
-                git ca-certificates curl ruby ruby-devel gcc gcc-c++ make \
+                git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 which findutils rsync
     container:
       image: ${{ matrix.container_image }}
