@@ -37,61 +37,30 @@ jobs:
           release_tag="auto-${short_sha}"
           release_title="Auto Release ${short_sha}"
           release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          asset_name="vpp-pppoeclient-${short_sha}.zip"
           {
             echo "tag=${release_tag}"
             echo "title=${release_title}"
             echo "date=${release_date}"
-            echo "asset_name=${asset_name}"
+            echo "short_sha=${short_sha}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build release zip
+      - name: Install packaging tools
         shell: bash
         run: |
-          mkdir -p dist
-          package_root="dist/package"
-          mkdir -p "${package_root}/src/plugins"
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rpm build-essential zip
+          sudo gem install --no-document fpm
 
-          cp -R src/plugins/pppoeclient "${package_root}/src/plugins/"
-          cp -R src/plugins/pppox "${package_root}/src/plugins/"
-          cp LICENSE "${package_root}/"
-
-          cat > "${package_root}/README.md" <<EOF
-          # VPP PPPoE Client Release Package
-
-          This package contains only the files needed to integrate the PPPoE client plugins into a VPP source tree:
-
-          - src/plugins/pppoeclient
-          - src/plugins/pppox
-          - LICENSE
-
-          Source repository:
-          - https://github.com/Hi-Jiajun/vpp-pppoeclient
-
-          Source commit:
-          - ${GITHUB_SHA}
-
-          Upstream branch:
-          - feat/pr-pppoeclient
-
-          Usage:
-          1. Copy \`src/plugins/pppoeclient\` into your VPP source tree under \`src/plugins/\`
-          2. Copy \`src/plugins/pppox\` into your VPP source tree under \`src/plugins/\`
-          3. Build the plugins in your VPP tree, for example:
-
-             \`\`\`bash
-             ninja -C build-root/build-vpp-native/vpp pppox_plugin pppoeclient_plugin vpp vppctl
-             \`\`\`
-
-          Notes:
-          - This zip intentionally excludes repository automation files and documentation not required for VPP integration
-          - For full documentation, see the repository README on GitHub
-          EOF
-
-          (
-            cd "${package_root}"
-            zip -qr "../${{ steps.meta.outputs.asset_name }}" .
-          )
+      - name: Build release assets
+        shell: bash
+        run: |
+          chmod +x scripts/build-release-packages.sh
+          ./scripts/build-release-packages.sh \
+            --short-sha "${{ steps.meta.outputs.short_sha }}" \
+            --full-sha "${GITHUB_SHA}" \
+            --upstream-branch "feat/pr-pppoeclient" \
+            --output-dir "dist"
+          ls -lh dist
 
       - name: Check whether release already exists
         id: exists
@@ -116,14 +85,14 @@ jobs:
             --title "${{ steps.meta.outputs.title }}" \
             --notes "Automated release created from commit ${GITHUB_SHA} on ${{ steps.meta.outputs.date }}." \
             --generate-notes \
-            "dist/${{ steps.meta.outputs.asset_name }}"
+            dist/*.zip dist/*.deb dist/*.rpm
 
-      - name: Upload zip to existing release
+      - name: Upload assets to existing release
         if: steps.exists.outputs.exists == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           gh release upload "${{ steps.meta.outputs.tag }}" \
-            "dist/${{ steps.meta.outputs.asset_name }}" \
+            dist/*.zip dist/*.deb dist/*.rpm \
             --clobber

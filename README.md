@@ -108,10 +108,15 @@ chmod +x ./scripts/sync-from-upstream.sh
 - 每个提交按短 SHA 自动生成一个 tag，例如 `auto-da21b11`
 - 同一个提交如果已经发过 Release，就不会重复创建
 - Release 会自动指向对应提交并附带自动生成的说明
-- Release 会额外上传一个 `.zip` 压缩包，例如 `vpp-pppoeclient-da21b11.zip`
-- 这个 `.zip` 只包含 VPP 集成所需文件：
+- Release 会自动上传这几类资产：
+  - `.zip` 源码集成包，例如 `vpp-pppoeclient-da21b11.zip`
+  - Debian / Ubuntu 用的 `.deb` 包
+  - RPM 系列发行版用的 `.rpm` 包
+- 这些包都只包含 VPP 集成所需文件：
   `src/plugins/pppoeclient`、`src/plugins/pppox`、`LICENSE`
-- `.zip` 包内会附带一份 `README.md`，说明如何拷贝到 VPP 源码树并编译
+- `.zip` 与系统包内都会附带一份 `README.md`，说明如何拷贝到 VPP 源码树并编译
+- `.deb` / `.rpm` 是“源码集成包”，不是预编译好的插件二进制；安装后文件位于
+  `/usr/share/vpp-pppoeclient/`
 
 ## 🧩 当前版本亮点
 

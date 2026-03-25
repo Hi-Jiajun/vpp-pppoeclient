@@ -109,10 +109,15 @@ Release behavior:
 - each commit gets an automatic tag based on its short SHA, for example `auto-da21b11`
 - the same commit will not create duplicate releases
 - the release targets the exact commit and includes generated notes
-- each release also uploads a `.zip` package, for example `vpp-pppoeclient-da21b11.zip`
-- the `.zip` contains only the files needed for VPP integration:
+- each release uploads:
+  - a `.zip` source integration package, for example `vpp-pppoeclient-da21b11.zip`
+  - a `.deb` package for Debian/Ubuntu systems
+  - a `.rpm` package for RPM-based distributions
+- these assets contain only the files needed for VPP integration:
   `src/plugins/pppoeclient`, `src/plugins/pppox`, and `LICENSE`
-- the `.zip` also includes a package `README.md` with copy/build instructions
+- the `.zip` and system packages include a package `README.md` with copy/build instructions
+- the `.deb` / `.rpm` outputs are source integration packages, not prebuilt plugin binaries; after
+  installation they live under `/usr/share/vpp-pppoeclient/`
 
 ## 🧩 Highlights
 
