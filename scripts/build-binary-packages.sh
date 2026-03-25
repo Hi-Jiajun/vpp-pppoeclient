@@ -227,9 +227,15 @@ rewrite_group_args() {
   local arg
   for arg in "\$@"; do
     if [[ "\${arg}" == "C Development Tools and Libraries" ]]; then
-      rewritten+=("Development Tools")
+      rewritten+=("@c-development")
+    elif [[ "\${arg}" == "Development Tools" ]]; then
+      rewritten+=("@development-tools")
     else
-      rewritten+=("\${arg}")
+      if [[ "\${arg}" == @* ]]; then
+        rewritten+=("\${arg}")
+      else
+        rewritten+=("\${arg}")
+      fi
     fi
   done
   printf '%s\n' "\${rewritten[@]}"
@@ -238,13 +244,13 @@ rewrite_group_args() {
 if [[ "\${1:-}" == "groupinstall" ]]; then
   shift
   mapfile -t _group_args < <(rewrite_group_args "\$@")
-  exec "${REAL_DNF}" group install "\${_group_args[@]}"
+  exec "${REAL_DNF}" install "\${_group_args[@]}"
 fi
 
 if [[ "\${1:-}" == "group" && "\${2:-}" == "install" ]]; then
   shift 2
   mapfile -t _group_args < <(rewrite_group_args "\$@")
-  exec "${REAL_DNF}" group install "\${_group_args[@]}"
+  exec "${REAL_DNF}" install "\${_group_args[@]}"
 fi
 
 exec "${REAL_DNF}" "\$@"
