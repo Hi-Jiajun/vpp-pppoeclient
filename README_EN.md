@@ -104,20 +104,31 @@ It creates a GitHub Release automatically when `master` receives project-related
 - `README_EN.md`
 - `scripts/**`
 
+The current prebuilt package target is:
+
+- `v26.02-pppoe-v1.0`
+
 Release behavior:
 
 - each commit gets an automatic tag based on its short SHA, for example `auto-da21b11`
 - the same commit will not create duplicate releases
 - the release targets the exact commit and includes generated notes
-- each release uploads:
-  - a `.zip` source integration package, for example `vpp-pppoeclient-da21b11.zip`
-  - a `.deb` package for Debian/Ubuntu systems
-  - a `.rpm` package for RPM-based distributions
-- these assets contain only the files needed for VPP integration:
-  `src/plugins/pppoeclient`, `src/plugins/pppox`, and `LICENSE`
-- the `.zip` and system packages include a package `README.md` with copy/build instructions
-- the `.deb` / `.rpm` outputs are source integration packages, not prebuilt plugin binaries; after
-  installation they live under `/usr/share/vpp-pppoeclient/`
+- each release uploads prebuilt packages for:
+  - Debian / Ubuntu as `.deb`
+  - RPM-based distributions as `.rpm`
+- the current build matrix includes:
+  - Ubuntu 24.04
+  - Debian 12
+  - Rocky Linux 9
+- these packages contain prebuilt plugin binaries and API JSON files:
+  - `pppoeclient_plugin.so`
+  - `pppox_plugin.so`
+  - `pppoeclient.api.json`
+  - `pppox.api.json`
+- installed paths follow common VPP system locations, for example:
+  - Debian / Ubuntu: `/usr/lib/x86_64-linux-gnu/vpp_plugins`
+  - RPM-based systems: `/usr/lib64/vpp_plugins`
+- if you prefer source integration instead of prebuilt packages, the README still documents that workflow
 
 ## 🧩 Highlights
 

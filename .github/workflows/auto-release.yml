@@ -2,6 +2,11 @@ name: Auto Release
 
 on:
   workflow_dispatch:
+    inputs:
+      vpp_ref:
+        description: Stable VPP ref from Hi-Jiajun/vpp used for prebuilt packages
+        required: false
+        default: v26.02-pppoe-v1.0
   push:
     branches:
       - master
@@ -11,6 +16,7 @@ on:
       - "README.md"
       - "README_EN.md"
       - "scripts/**"
+      - ".github/workflows/auto-release.yml"
 
 permissions:
   contents: write
@@ -19,8 +25,104 @@ concurrency:
   group: auto-release-master
   cancel-in-progress: false
 
+env:
+  VPP_UPSTREAM_URL: https://github.com/Hi-Jiajun/vpp.git
+  DEFAULT_VPP_REF: v26.02-pppoe-v1.0
+
 jobs:
+  build-prebuilt-packages:
+    name: Build ${{ matrix.distro_id }} ${{ matrix.package_type }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro_id: ubuntu24.04
+            container_image: ubuntu:24.04
+            package_type: deb
+            package_arch: amd64
+            plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            bootstrap_cmd: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                git ca-certificates curl ruby ruby-dev build-essential rsync
+          - distro_id: debian12
+            container_image: debian:12
+            package_type: deb
+            package_arch: amd64
+            plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            bootstrap_cmd: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                git ca-certificates curl ruby ruby-dev build-essential rsync
+          - distro_id: rockylinux9
+            container_image: rockylinux:9
+            package_type: rpm
+            package_arch: x86_64
+            plugin_lib_dir: /usr/lib64/vpp_plugins
+            bootstrap_cmd: |
+              dnf install -y \
+                git ca-certificates curl ruby ruby-devel gcc gcc-c++ make \
+                which findutils rsync
+    container:
+      image: ${{ matrix.container_image }}
+      options: --user root
+
+    steps:
+      - name: Bootstrap container tools
+        shell: bash
+        run: ${{ matrix.bootstrap_cmd }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install packaging tools
+        shell: bash
+        run: |
+          gem install --no-document fpm
+
+      - name: Prepare metadata
+        id: meta
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
+            vpp_ref="${{ inputs.vpp_ref }}"
+          else
+            vpp_ref="${DEFAULT_VPP_REF}"
+          fi
+          {
+            echo "short_sha=${short_sha}"
+            echo "vpp_ref=${vpp_ref}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build precompiled package
+        shell: bash
+        run: |
+          chmod +x scripts/build-binary-packages.sh
+          ./scripts/build-binary-packages.sh \
+            --vpp-repo-url "${VPP_UPSTREAM_URL}" \
+            --vpp-ref "${{ steps.meta.outputs.vpp_ref }}" \
+            --package-type "${{ matrix.package_type }}" \
+            --package-arch "${{ matrix.package_arch }}" \
+            --distro-id "${{ matrix.distro_id }}" \
+            --plugin-lib-dir "${{ matrix.plugin_lib_dir }}" \
+            --output-dir dist \
+            --short-sha "${{ steps.meta.outputs.short_sha }}" \
+            --full-sha "${GITHUB_SHA}"
+          ls -lh dist
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilt-${{ matrix.distro_id }}
+          path: dist/*
+
   create-release:
+    name: Publish release
+    needs: build-prebuilt-packages
     runs-on: ubuntu-latest
 
     steps:
@@ -37,30 +139,23 @@ jobs:
           release_tag="auto-${short_sha}"
           release_title="Auto Release ${short_sha}"
           release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
+            vpp_ref="${{ inputs.vpp_ref }}"
+          else
+            vpp_ref="${DEFAULT_VPP_REF}"
+          fi
           {
             echo "tag=${release_tag}"
             echo "title=${release_title}"
             echo "date=${release_date}"
-            echo "short_sha=${short_sha}"
+            echo "vpp_ref=${vpp_ref}"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Install packaging tools
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ruby ruby-dev rpm build-essential zip
-          sudo gem install --no-document fpm
-
-      - name: Build release assets
-        shell: bash
-        run: |
-          chmod +x scripts/build-release-packages.sh
-          ./scripts/build-release-packages.sh \
-            --short-sha "${{ steps.meta.outputs.short_sha }}" \
-            --full-sha "${GITHUB_SHA}" \
-            --upstream-branch "feat/pr-pppoeclient" \
-            --output-dir "dist"
-          ls -lh dist
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Check whether release already exists
         id: exists
@@ -83,9 +178,9 @@ jobs:
           gh release create "${{ steps.meta.outputs.tag }}" \
             --target "${GITHUB_SHA}" \
             --title "${{ steps.meta.outputs.title }}" \
-            --notes "Automated release created from commit ${GITHUB_SHA} on ${{ steps.meta.outputs.date }}." \
+            --notes "Automated prebuilt plugin packages created from commit ${GITHUB_SHA} against VPP ref ${{ steps.meta.outputs.vpp_ref }} on ${{ steps.meta.outputs.date }}." \
             --generate-notes \
-            dist/*.zip dist/*.deb dist/*.rpm
+            dist/*.deb dist/*.rpm
 
       - name: Upload assets to existing release
         if: steps.exists.outputs.exists == 'true'
@@ -94,5 +189,5 @@ jobs:
         shell: bash
         run: |
           gh release upload "${{ steps.meta.outputs.tag }}" \
-            dist/*.zip dist/*.deb dist/*.rpm \
+            dist/*.deb dist/*.rpm \
             --clobber
