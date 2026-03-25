@@ -170,11 +170,11 @@ LIBROOT="${PKGROOT}${PLUGIN_LIB_DIR}"
 mkdir -p "${TOOLBIN}"
 
 if ! command -v sudo >/dev/null 2>&1; then
-  cat > "${TOOLBIN}/sudo" <<EOF
+  cat > "${TOOLBIN}/sudo" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-toolbin="${TOOLBIN}"
+toolbin="__TOOLBIN__"
 args=("$@")
 idx=0
 
@@ -213,6 +213,7 @@ fi
 
 exec "${cmd[@]}"
 EOF
+  sed -i "s|__TOOLBIN__|${TOOLBIN}|g" "${TOOLBIN}/sudo"
   chmod +x "${TOOLBIN}/sudo"
   export PATH="${TOOLBIN}:${PATH}"
 fi
