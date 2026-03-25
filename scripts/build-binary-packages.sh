@@ -9,6 +9,7 @@ DISTRO_ID=""
 PLUGIN_LIB_DIR=""
 MAKE_OS_ID=""
 MAKE_OS_VERSION_ID=""
+SKIP_INSTALL_DEP=0
 OUTPUT_DIR="dist"
 SHORT_SHA=""
 FULL_SHA=""
@@ -27,6 +28,7 @@ Options:
   --plugin-lib-dir <path>  Final plugin install directory inside the package
   --make-os-id <id>        Optional OS_ID override passed into the VPP Makefile
   --make-os-version-id <v> Optional OS_VERSION_ID override passed into the VPP Makefile
+  --skip-install-dep       Skip VPP's top-level make install-dep step
   --output-dir <dir>       Output directory for built assets
   --short-sha <sha>        Short commit SHA for naming
   --full-sha <sha>         Full commit SHA recorded in docs
@@ -67,6 +69,10 @@ while [[ $# -gt 0 ]]; do
     --make-os-version-id)
       MAKE_OS_VERSION_ID="$2"
       shift 2
+      ;;
+    --skip-install-dep)
+      SKIP_INSTALL_DEP=1
+      shift
       ;;
     --output-dir)
       OUTPUT_DIR="$2"
@@ -202,8 +208,12 @@ echo "Overlaying current plugin sources"
 rsync -a --delete "${REPO_ROOT}/src/plugins/pppoeclient/" "${VPP_WORKTREE}/src/plugins/pppoeclient/"
 rsync -a --delete "${REPO_ROOT}/src/plugins/pppox/" "${VPP_WORKTREE}/src/plugins/pppox/"
 
-echo "Installing VPP build dependencies"
-make -C "${VPP_WORKTREE}" UNATTENDED=y SUDO= "${MAKE_ARGS[@]}" install-dep
+if [[ "${SKIP_INSTALL_DEP}" -eq 0 ]]; then
+  echo "Installing VPP build dependencies"
+  make -C "${VPP_WORKTREE}" UNATTENDED=y SUDO= "${MAKE_ARGS[@]}" install-dep
+else
+  echo "Skipping VPP top-level install-dep step"
+fi
 
 echo "Building plugin binaries against ${VPP_REF}"
 make -C "${VPP_WORKTREE}" VPP_PLUGINS=pppoeclient,pppox "${MAKE_ARGS[@]}" build-release

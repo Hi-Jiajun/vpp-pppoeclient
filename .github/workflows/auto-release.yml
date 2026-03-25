@@ -63,11 +63,12 @@ jobs:
             package_type: rpm
             package_arch: x86_64
             plugin_lib_dir: /usr/lib64/vpp_plugins
-            make_os_id: ""
-            make_os_version_id: ""
+            make_os_id: fedora
+            make_os_version_id: "43"
+            skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y \
-                'dnf5-command(groupinstall)' \
+                dnf5-plugins \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 which findutils rsync
           - distro_id: rockylinux9
@@ -77,6 +78,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
+            skip_install_dep: "false"
             bootstrap_cmd: |
               dnf install -y \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
@@ -88,9 +90,10 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: rocky
             make_os_version_id: "9"
+            skip_install_dep: "true"
             bootstrap_cmd: |
-              dnf install -y dnf-plugins-core https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
               dnf install -y \
+                dnf-plugins-core https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 which findutils rsync
     container:
@@ -131,6 +134,10 @@ jobs:
       - name: Build precompiled package
         shell: bash
         run: |
+          extra_args=()
+          if [[ "${{ matrix.skip_install_dep }}" == "true" ]]; then
+            extra_args+=(--skip-install-dep)
+          fi
           chmod +x scripts/build-binary-packages.sh
           ./scripts/build-binary-packages.sh \
             --vpp-repo-url "${VPP_UPSTREAM_URL}" \
@@ -141,6 +148,7 @@ jobs:
             --plugin-lib-dir "${{ matrix.plugin_lib_dir }}" \
             --make-os-id "${{ matrix.make_os_id }}" \
             --make-os-version-id "${{ matrix.make_os_version_id }}" \
+            "${extra_args[@]}" \
             --output-dir dist \
             --short-sha "${{ steps.meta.outputs.short_sha }}" \
             --full-sha "${GITHUB_SHA}"
