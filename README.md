@@ -110,7 +110,8 @@ chmod +x ./scripts/sync-from-upstream.sh
 
 发布规则：
 
-- 每个提交按短 SHA 自动生成一个 tag，例如 `auto-da21b11`
+- Release tag 会使用更直观的格式，例如 `fdio-vpp-v26.02-f752f6b`
+- Release 标题会使用更直观的格式，例如 `FDio/vpp v26.02 Prebuilt Packages (f752f6b)`
 - 同一个提交如果已经发过 Release，就不会重复创建
 - Release 会自动指向对应提交并附带自动生成的说明
 - Release 会自动上传这几类预编译包：

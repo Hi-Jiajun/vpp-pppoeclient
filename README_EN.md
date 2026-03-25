@@ -111,7 +111,8 @@ The current prebuilt package target is the latest stable tag from official `FDio
 
 Release behavior:
 
-- each commit gets an automatic tag based on its short SHA, for example `auto-da21b11`
+- release tags use a clearer format, for example `fdio-vpp-v26.02-f752f6b`
+- release titles use a clearer format, for example `FDio/vpp v26.02 Prebuilt Packages (f752f6b)`
 - the same commit will not create duplicate releases
 - the release targets the exact commit and includes generated notes
 - each release uploads prebuilt packages for:

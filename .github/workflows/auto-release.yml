@@ -136,8 +136,6 @@ jobs:
         shell: bash
         run: |
           short_sha="${GITHUB_SHA::7}"
-          release_tag="auto-${short_sha}"
-          release_title="Auto Release ${short_sha}"
           release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
             vpp_ref="${{ inputs.vpp_ref }}"
@@ -145,6 +143,9 @@ jobs:
             chmod +x scripts/get-latest-fdio-stable-tag.sh
             vpp_ref="$(./scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
           fi
+          vpp_ref_sanitized="$(echo "${vpp_ref}" | sed 's/[^A-Za-z0-9._-]/-/g')"
+          release_tag="fdio-vpp-${vpp_ref_sanitized}-${short_sha}"
+          release_title="FDio/vpp ${vpp_ref} Prebuilt Packages (${short_sha})"
           {
             echo "tag=${release_tag}"
             echo "title=${release_title}"
