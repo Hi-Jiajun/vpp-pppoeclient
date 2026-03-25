@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: Sun-PPP */
 /*
  * eap.h - Extensible Authentication Protocol for PPP (RFC 2284)
  *

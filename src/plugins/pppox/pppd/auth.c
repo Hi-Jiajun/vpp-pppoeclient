@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: Mackerras-3-Clause-acknowledgment AND BSD-Attribution-HPND-disclaimer */
 /*
  * auth.c - PPP authentication and phase control.
  *

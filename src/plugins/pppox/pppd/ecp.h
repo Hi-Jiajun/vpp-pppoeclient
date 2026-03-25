@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: Mackerras-3-Clause */
 /*
  * ecp.h - Definitions for PPP Encryption Control Protocol.
  *

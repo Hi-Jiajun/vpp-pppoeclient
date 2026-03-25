@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: BSD-Attribution-HPND-disclaimer */
 /*
  * fsm.h - {Link, IP} Control Protocol Finite State Machine definitions.
  *

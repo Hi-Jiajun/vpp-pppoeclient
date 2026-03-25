@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: BSD-Attribution-HPND-disclaimer */
 /*
  * upap.h - User/Password Authentication Protocol definitions.
  *

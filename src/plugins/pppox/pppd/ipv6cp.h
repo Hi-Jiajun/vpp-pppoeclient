@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: BSD-Attribution-HPND-disclaimer */
 /*
  * ipv6cp.h - IPv6 Control Protocol definitions.
  *

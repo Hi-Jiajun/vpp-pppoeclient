@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: Mackerras-3-Clause AND Mackerras-3-Clause-acknowledgment */
 /*
  * ppp-comp.h - Definitions for doing PPP packet compression.
  *

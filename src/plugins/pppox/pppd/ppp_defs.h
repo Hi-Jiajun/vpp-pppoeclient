@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: Mackerras-3-Clause AND Mackerras-3-Clause-acknowledgment */
 /*	$Id: ppp_defs.h,v 1.17 2002/12/06 09:49:15 paulus Exp $	*/
 
 /*

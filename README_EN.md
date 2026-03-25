@@ -30,8 +30,7 @@ Together they provide a complete PPPoE client running inside VPP user space.
 ## 📌 Current Sync Status
 
 - 🌿 Upstream branch: `feat/pr-pppoeclient`
-- 🔖 Synced upstream commit: `ee002b08dffaed8cf94a3b1f193619950ebbfca9`
-- 🧾 This repo commit that synced and refreshed docs: `1db4da9`
+- 🔖 Synced upstream commit: `0ebbd46e8771257ca9462277e966f948f90e9343`
 
 ## 🔄 Sync From Upstream
 
@@ -102,7 +101,6 @@ It creates a GitHub Release automatically when `master` receives project-related
 - `src/plugins/pppoeclient/**`
 - `src/plugins/pppox/**`
 - `README.md`
-- `README_CN.md`
 - `README_EN.md`
 - `scripts/**`
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: BSD-4.3TAHOE */
 /*
  * Definitions for tcp compression routines.
  *

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: Mackerras-3-Clause-acknowledgment */
 /*
  * chap-md5.h - New CHAP/MD5 implementation.
  *

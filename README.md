@@ -29,8 +29,7 @@
 ## 📌 当前同步状态
 
 - 🌿 上游分支：`feat/pr-pppoeclient`
-- 🔖 当前同步的上游提交：`ee002b08dffaed8cf94a3b1f193619950ebbfca9`
-- 🧾 本仓库用于同步并更新文档的提交：`1db4da9`
+- 🔖 当前同步的上游提交：`0ebbd46e8771257ca9462277e966f948f90e9343`
 
 ## 🔄 同步上游
 
@@ -101,7 +100,6 @@ chmod +x ./scripts/sync-from-upstream.sh
 - `src/plugins/pppoeclient/**`
 - `src/plugins/pppox/**`
 - `README.md`
-- `README_CN.md`
 - `README_EN.md`
 - `scripts/**`
 

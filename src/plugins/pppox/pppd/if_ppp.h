@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: Apache-2.0 */
+/* SPDX-License-Identifier: BSD-Attribution-HPND-disclaimer */
 /*	$Id: if_ppp.h,v 1.19 2002/12/06 09:49:15 paulus Exp $	*/
 
 /*
