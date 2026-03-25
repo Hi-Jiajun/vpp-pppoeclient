@@ -146,7 +146,30 @@ mkdir -p "${TOOLBIN}"
 if ! command -v sudo >/dev/null 2>&1; then
   cat > "${TOOLBIN}/sudo" <<'EOF'
 #!/usr/bin/env bash
-exec "$@"
+set -euo pipefail
+
+args=("$@")
+idx=0
+
+while [[ ${idx} -lt ${#args[@]} ]]; do
+  case "${args[$idx]}" in
+    -E|-H|-n|-S|-k)
+      idx=$((idx + 1))
+      ;;
+    --)
+      idx=$((idx + 1))
+      break
+      ;;
+    -*)
+      idx=$((idx + 1))
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+exec "${args[@]:$idx}"
 EOF
   chmod +x "${TOOLBIN}/sudo"
   export PATH="${TOOLBIN}:${PATH}"
