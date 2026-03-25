@@ -121,7 +121,9 @@ Release behavior:
 - the current build matrix includes:
   - Ubuntu 24.04
   - Debian 12
+  - Fedora 43
   - Rocky Linux 9
+  - RHEL 9
 - the prebuilt workflow pulls from the official repository:
   - `https://github.com/FDio/vpp.git`
 - when no tag is specified manually, the workflow resolves the latest official stable tag automatically
@@ -132,7 +134,7 @@ Release behavior:
   - `pppox.api.json`
 - installed paths follow common VPP system locations, for example:
   - Debian / Ubuntu: `/usr/lib/x86_64-linux-gnu/vpp_plugins`
-  - RPM-based systems: `/usr/lib64/vpp_plugins`
+  - Fedora / Rocky / RHEL: `/usr/lib64/vpp_plugins`
 - if you prefer source integration instead of prebuilt packages, the README still documents that workflow
 
 ### Prebuilt Package Install and Verification Examples

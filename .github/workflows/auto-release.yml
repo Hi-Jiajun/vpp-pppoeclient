@@ -41,6 +41,8 @@ jobs:
             package_type: deb
             package_arch: amd64
             plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
             bootstrap_cmd: |
               apt-get update
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -50,15 +52,41 @@ jobs:
             package_type: deb
             package_arch: amd64
             plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
             bootstrap_cmd: |
               apt-get update
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 git ca-certificates ruby ruby-dev build-essential rsync
+          - distro_id: fedora43
+            container_image: fedora:43
+            package_type: rpm
+            package_arch: x86_64
+            plugin_lib_dir: /usr/lib64/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            bootstrap_cmd: |
+              dnf install -y \
+                git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                which findutils rsync
           - distro_id: rockylinux9
             container_image: rockylinux:9
             package_type: rpm
             package_arch: x86_64
             plugin_lib_dir: /usr/lib64/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            bootstrap_cmd: |
+              dnf install -y \
+                git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                which findutils rsync
+          - distro_id: rhel9
+            container_image: registry.access.redhat.com/ubi9/ubi:latest
+            package_type: rpm
+            package_arch: x86_64
+            plugin_lib_dir: /usr/lib64/vpp_plugins
+            make_os_id: rocky
+            make_os_version_id: "9"
             bootstrap_cmd: |
               dnf install -y \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
@@ -109,6 +137,8 @@ jobs:
             --package-arch "${{ matrix.package_arch }}" \
             --distro-id "${{ matrix.distro_id }}" \
             --plugin-lib-dir "${{ matrix.plugin_lib_dir }}" \
+            --make-os-id "${{ matrix.make_os_id }}" \
+            --make-os-version-id "${{ matrix.make_os_version_id }}" \
             --output-dir dist \
             --short-sha "${{ steps.meta.outputs.short_sha }}" \
             --full-sha "${GITHUB_SHA}"

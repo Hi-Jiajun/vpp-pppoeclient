@@ -7,6 +7,8 @@ PACKAGE_TYPE=""
 PACKAGE_ARCH=""
 DISTRO_ID=""
 PLUGIN_LIB_DIR=""
+MAKE_OS_ID=""
+MAKE_OS_VERSION_ID=""
 OUTPUT_DIR="dist"
 SHORT_SHA=""
 FULL_SHA=""
@@ -23,6 +25,8 @@ Options:
   --package-arch <arch>    Package architecture, for example amd64 or x86_64
   --distro-id <id>         Distro identifier used in asset names
   --plugin-lib-dir <path>  Final plugin install directory inside the package
+  --make-os-id <id>        Optional OS_ID override passed into the VPP Makefile
+  --make-os-version-id <v> Optional OS_VERSION_ID override passed into the VPP Makefile
   --output-dir <dir>       Output directory for built assets
   --short-sha <sha>        Short commit SHA for naming
   --full-sha <sha>         Full commit SHA recorded in docs
@@ -54,6 +58,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --plugin-lib-dir)
       PLUGIN_LIB_DIR="$2"
+      shift 2
+      ;;
+    --make-os-id)
+      MAKE_OS_ID="$2"
+      shift 2
+      ;;
+    --make-os-version-id)
+      MAKE_OS_VERSION_ID="$2"
       shift 2
       ;;
     --output-dir)
@@ -95,6 +107,14 @@ if [[ -z "${PACKAGE_TYPE}" || -z "${PACKAGE_ARCH}" || -z "${DISTRO_ID}" || -z "$
   echo "Missing required packaging arguments" >&2
   usage >&2
   exit 1
+fi
+
+MAKE_ARGS=()
+if [[ -n "${MAKE_OS_ID}" ]]; then
+  MAKE_ARGS+=("OS_ID=${MAKE_OS_ID}")
+fi
+if [[ -n "${MAKE_OS_VERSION_ID}" ]]; then
+  MAKE_ARGS+=("OS_VERSION_ID=${MAKE_OS_VERSION_ID}")
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -183,10 +203,10 @@ rsync -a --delete "${REPO_ROOT}/src/plugins/pppoeclient/" "${VPP_WORKTREE}/src/p
 rsync -a --delete "${REPO_ROOT}/src/plugins/pppox/" "${VPP_WORKTREE}/src/plugins/pppox/"
 
 echo "Installing VPP build dependencies"
-make -C "${VPP_WORKTREE}" UNATTENDED=y SUDO= install-dep
+make -C "${VPP_WORKTREE}" UNATTENDED=y SUDO= "${MAKE_ARGS[@]}" install-dep
 
 echo "Building plugin binaries against ${VPP_REF}"
-make -C "${VPP_WORKTREE}" VPP_PLUGINS=pppoeclient,pppox build-release
+make -C "${VPP_WORKTREE}" VPP_PLUGINS=pppoeclient,pppox "${MAKE_ARGS[@]}" build-release
 
 PPPOECLIENT_SO="$(find "${VPP_WORKTREE}/build-root" -type f -name 'pppoeclient_plugin.so' | head -n 1)"
 PPPOX_SO="$(find "${VPP_WORKTREE}/build-root" -type f -name 'pppox_plugin.so' | head -n 1)"

@@ -120,7 +120,9 @@ chmod +x ./scripts/sync-from-upstream.sh
 - 当前矩阵包括：
   - Ubuntu 24.04
   - Debian 12
+  - Fedora 43
   - Rocky Linux 9
+  - RHEL 9
 - 预编译 workflow 拉取的是官方仓库：
   - `https://github.com/FDio/vpp.git`
 - 预编译 workflow 在未手工指定时，会自动解析官方最新稳定 tag
@@ -131,7 +133,7 @@ chmod +x ./scripts/sync-from-upstream.sh
   - `pppox.api.json`
 - 安装后插件文件会落到系统 VPP 常用目录，例如：
   - Debian / Ubuntu: `/usr/lib/x86_64-linux-gnu/vpp_plugins`
-  - RPM 系列: `/usr/lib64/vpp_plugins`
+  - Fedora / Rocky / RHEL: `/usr/lib64/vpp_plugins`
 - 如果你不想使用预编译包，也可以直接按本文档中的源码方式拷贝到 VPP 树中编译
 
 ### 预编译包安装与验证示例
