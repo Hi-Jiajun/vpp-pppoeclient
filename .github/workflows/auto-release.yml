@@ -65,7 +65,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: fedora
             make_os_version_id: "43"
-            skip_install_dep: "true"
+            skip_install_dep: "false"
             bootstrap_cmd: |
               dnf install -y \
                 dnf5-plugins \
@@ -90,7 +90,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: rocky
             make_os_version_id: "9"
-            skip_install_dep: "true"
+            skip_install_dep: "false"
             bootstrap_cmd: |
               dnf install -y \
                 dnf-plugins-core https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \

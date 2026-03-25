@@ -201,6 +201,33 @@ EOF
   export PATH="${TOOLBIN}:${PATH}"
 fi
 
+REAL_DNF="$(command -v dnf || true)"
+if [[ -n "${REAL_DNF}" ]]; then
+  cat > "${TOOLBIN}/dnf" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "\${1:-}" == "groupinstall" ]]; then
+  shift
+  exec "${REAL_DNF}" group install "\$@"
+fi
+
+exec "${REAL_DNF}" "\$@"
+EOF
+  chmod +x "${TOOLBIN}/dnf"
+  export PATH="${TOOLBIN}:${PATH}"
+fi
+
+if ! command -v debuginfo-install >/dev/null 2>&1; then
+  cat > "${TOOLBIN}/debuginfo-install" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+  chmod +x "${TOOLBIN}/debuginfo-install"
+  export PATH="${TOOLBIN}:${PATH}"
+fi
+
 echo "Cloning ${VPP_REPO_URL} at ${VPP_REF}"
 git clone --depth 1 --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
 
