@@ -43,6 +43,7 @@ jobs:
             plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
+            cc_override: ""
             bootstrap_cmd: |
               apt-get update
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -54,6 +55,7 @@ jobs:
             plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
+            cc_override: ""
             bootstrap_cmd: |
               apt-get update
               DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -65,6 +67,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: fedora
             make_os_version_id: "43"
+            cc_override: gcc
             skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y \
@@ -83,6 +86,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
+            cc_override: gcc
             skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y dnf-plugins-core epel-release
@@ -103,6 +107,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
+            cc_override: gcc
             skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y dnf-plugins-core epel-release
@@ -168,6 +173,7 @@ jobs:
             --plugin-lib-dir "${{ matrix.plugin_lib_dir }}" \
             --make-os-id "${{ matrix.make_os_id }}" \
             --make-os-version-id "${{ matrix.make_os_version_id }}" \
+            --cc "${{ matrix.cc_override }}" \
             "${extra_args[@]}" \
             --output-dir dist \
             --short-sha "${{ steps.meta.outputs.short_sha }}" \

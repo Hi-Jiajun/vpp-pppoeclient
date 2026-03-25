@@ -9,6 +9,7 @@ DISTRO_ID=""
 PLUGIN_LIB_DIR=""
 MAKE_OS_ID=""
 MAKE_OS_VERSION_ID=""
+CC_OVERRIDE=""
 SKIP_INSTALL_DEP=0
 OUTPUT_DIR="dist"
 SHORT_SHA=""
@@ -28,6 +29,7 @@ Options:
   --plugin-lib-dir <path>  Final plugin install directory inside the package
   --make-os-id <id>        Optional OS_ID override passed into the VPP Makefile
   --make-os-version-id <v> Optional OS_VERSION_ID override passed into the VPP Makefile
+  --cc <compiler>          Optional compiler override passed into the VPP Makefile
   --skip-install-dep       Skip VPP's top-level make install-dep step
   --output-dir <dir>       Output directory for built assets
   --short-sha <sha>        Short commit SHA for naming
@@ -68,6 +70,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --make-os-version-id)
       MAKE_OS_VERSION_ID="$2"
+      shift 2
+      ;;
+    --cc)
+      CC_OVERRIDE="$2"
       shift 2
       ;;
     --skip-install-dep)
@@ -121,6 +127,9 @@ if [[ -n "${MAKE_OS_ID}" ]]; then
 fi
 if [[ -n "${MAKE_OS_VERSION_ID}" ]]; then
   MAKE_ARGS+=("OS_VERSION_ID=${MAKE_OS_VERSION_ID}")
+fi
+if [[ -n "${CC_OVERRIDE}" ]]; then
+  MAKE_ARGS+=("CC=${CC_OVERRIDE}")
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
