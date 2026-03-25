@@ -84,16 +84,15 @@ jobs:
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 which findutils rsync
           - distro_id: rhel9
-            container_image: registry.access.redhat.com/ubi9/ubi:latest
+            container_image: rockylinux:9
             package_type: rpm
             package_arch: x86_64
             plugin_lib_dir: /usr/lib64/vpp_plugins
-            make_os_id: rocky
-            make_os_version_id: "9"
+            make_os_id: ""
+            make_os_version_id: ""
             skip_install_dep: "false"
             bootstrap_cmd: |
               dnf install -y \
-                dnf-plugins-core https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
                 git ca-certificates ruby ruby-devel gcc gcc-c++ make \
                 which findutils rsync
     container:

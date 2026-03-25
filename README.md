@@ -134,6 +134,7 @@ chmod +x ./scripts/sync-from-upstream.sh
 - 安装后插件文件会落到系统 VPP 常用目录，例如：
   - Debian / Ubuntu: `/usr/lib/x86_64-linux-gnu/vpp_plugins`
   - Fedora / Rocky / RHEL: `/usr/lib64/vpp_plugins`
+- `rhel9` 目标当前使用 EL9 兼容环境构建，以避免 GitHub Actions 中未注册 RHEL/UBI 容器的仓库限制
 - 如果你不想使用预编译包，也可以直接按本文档中的源码方式拷贝到 VPP 树中编译
 
 ### 预编译包安装与验证示例

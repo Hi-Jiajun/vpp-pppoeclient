@@ -135,6 +135,7 @@ Release behavior:
 - installed paths follow common VPP system locations, for example:
   - Debian / Ubuntu: `/usr/lib/x86_64-linux-gnu/vpp_plugins`
   - Fedora / Rocky / RHEL: `/usr/lib64/vpp_plugins`
+- the current `rhel9` target is built in an EL9-compatible environment to avoid repository limitations in unregistered RHEL/UBI CI containers
 - if you prefer source integration instead of prebuilt packages, the README still documents that workflow
 
 ### Prebuilt Package Install and Verification Examples
