@@ -48,12 +48,18 @@ define pppoeclient_dump
     @param context - sender context, to match reply w/ request
     @param sw_if_index - software index of the interface
     @param host_uniq - tag identifying a PPPOE client on the the sw_if_index
+    @param pppox_sw_if_index - software index of the corresponding pppox interface
+    @param session_id - current PPPoE session ID, if present
+    @param client_state - current PPPoE client state
 */
 define pppoeclient_details
 {
   u32 context;
   u32 sw_if_index;
   u32 host_uniq;
+  u32 pppox_sw_if_index;
+  u16 session_id;
+  u8 client_state;
 };
 
 /*

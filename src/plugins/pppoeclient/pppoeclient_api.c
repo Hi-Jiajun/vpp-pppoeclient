@@ -65,6 +65,9 @@ send_pppoeclient_details (pppoe_client_t *t, vl_api_registration_t *reg, u32 con
   rmp->context = context;
   rmp->sw_if_index = ntohl (t->sw_if_index);
   rmp->host_uniq = ntohl (t->host_uniq);
+  rmp->pppox_sw_if_index = ntohl (t->pppox_sw_if_index);
+  rmp->session_id = ntohs (t->session_id);
+  rmp->client_state = t->state;
 
   vl_api_send_msg (reg, (u8 *) rmp);
 }
@@ -76,6 +79,7 @@ vl_api_pppoeclient_dump_t_handler (vl_api_pppoeclient_dump_t *mp)
   vl_api_registration_t *reg;
   pppoeclient_main_t *pem = &pppoeclient_main;
   pppoe_client_t *t;
+  u32 sw_if_index = ntohl (mp->sw_if_index);
 
   reg = vl_api_client_index_to_registration (mp->client_index);
   if (reg == 0)
@@ -85,6 +89,9 @@ vl_api_pppoeclient_dump_t_handler (vl_api_pppoeclient_dump_t *mp)
 
   pool_foreach (t, pem->clients)
     {
+      if (sw_if_index != ~0 && t->sw_if_index != sw_if_index)
+	continue;
+
       send_pppoeclient_details (t, reg, mp->context);
     }
 }
