@@ -30,7 +30,7 @@ Together they provide a complete PPPoE client running inside VPP user space.
 ## 📌 Current Sync Status
 
 - 🌿 Upstream branch: `feat/pr-pppoeclient`
-- 🔖 Synced upstream commit: `7632b726fdca9697b27f87bc4780803cf11ca51c`
+- 🔖 Synced upstream commit: `2d6928919818223221b14b7dda9c0958be9ed4a5`
 
 ## 🔄 Sync From Upstream
 
