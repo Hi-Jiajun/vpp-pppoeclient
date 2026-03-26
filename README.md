@@ -114,6 +114,7 @@ chmod +x ./scripts/sync-from-upstream.sh
 - Release 标题会使用更直观的格式，例如 `FDio/vpp v26.02 Prebuilt Packages (f752f6b)`
 - 同一个提交如果已经发过 Release，就不会重复创建
 - Release 会自动指向对应提交并附带自动生成的说明
+- 预编译包在上传前会执行一轮包级 smoke test，验证依赖声明、解包/安装以及插件与 API 文件路径是否正确
 - Release 会自动上传这几类预编译包：
   - Debian / Ubuntu 用的 `.deb`
   - RPM 系列发行版用的 `.rpm`

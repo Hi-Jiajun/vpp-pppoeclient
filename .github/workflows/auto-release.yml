@@ -180,6 +180,20 @@ jobs:
             --full-sha "${GITHUB_SHA}"
           ls -lh dist
 
+      - name: Verify precompiled package smoke test
+        shell: bash
+        run: |
+          package_file="$(find dist -maxdepth 1 -type f \( -name '*.deb' -o -name '*.rpm' \) | head -n 1)"
+          if [[ -z "${package_file}" ]]; then
+            echo "No built package found in dist/" >&2
+            exit 1
+          fi
+          chmod +x scripts/verify-prebuilt-package.sh
+          ./scripts/verify-prebuilt-package.sh \
+            --package-type "${{ matrix.package_type }}" \
+            --package-file "${package_file}" \
+            --plugin-lib-dir "${{ matrix.plugin_lib_dir }}"
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
