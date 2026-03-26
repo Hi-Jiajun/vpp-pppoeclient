@@ -131,6 +131,7 @@ fi
 if [[ -n "${CC_OVERRIDE}" ]]; then
   MAKE_ARGS+=("CC=${CC_OVERRIDE}")
 fi
+MAKE_ARGS+=('VPP_EXTRA_CMAKE_ARGS=-DVPP_PLUGINS="ppp,pppox,pppoeclient"')
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -296,7 +297,7 @@ else
 fi
 
 echo "Building plugin binaries against ${VPP_REF}"
-make -C "${VPP_WORKTREE}" VPP_PLUGINS=pppoeclient,pppox "${MAKE_ARGS[@]}" build-release
+make -C "${VPP_WORKTREE}" "${MAKE_ARGS[@]}" build-release
 
 PPPOECLIENT_SO="$(find "${VPP_WORKTREE}/build-root" -type f -name 'pppoeclient_plugin.so' | head -n 1)"
 PPPOX_SO="$(find "${VPP_WORKTREE}/build-root" -type f -name 'pppox_plugin.so' | head -n 1)"
