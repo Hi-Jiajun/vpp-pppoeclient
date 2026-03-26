@@ -92,7 +92,7 @@ static void ipv6cp_protrej __P ((int) );
 static struct fsm_callbacks ipv6cp_callbacks = {
   ipv6cp_resetci,  ipv6cp_cilen,   ipv6cp_addci, ipv6cp_ackci, ipv6cp_nakci,
   ipv6cp_rejci,	   ipv6cp_reqci,   ipv6cp_up,	 ipv6cp_down,  ipv6cp_starting,
-  ipv6cp_finished, ipv6cp_protrej, NULL,	 "IPV6CP"
+  ipv6cp_finished, ipv6cp_protrej, NULL, NULL,	 "IPV6CP"
 };
 
 /*

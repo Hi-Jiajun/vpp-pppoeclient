@@ -170,8 +170,8 @@ typedef struct
   u8 use_peer_dns;
   u8 use_peer_route4; /* add-default-route4: add IPv4 default route */
   u8 use_peer_route6; /* add-default-route6: add IPv6 default route */
-  CLIB_UNUSED (u32 ip4_addr);
-  CLIB_UNUSED (u32 ip4_netmask);
+  u32 ip4_addr;
+  u32 ip4_netmask;
   u32 ip4_gateway;
   u32 dns1;
   u32 dns2;
