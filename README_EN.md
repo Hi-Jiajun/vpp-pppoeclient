@@ -115,7 +115,7 @@ Release behavior:
 - release titles use a clearer format, for example `FDio/vpp v26.02 Prebuilt Packages (f752f6b)`
 - the same commit will not create duplicate releases
 - the release targets the exact commit and includes generated notes
-- each prebuilt package now goes through a package-level smoke test before upload, covering dependency metadata, unpack/install, and expected plugin/API file paths
+- each prebuilt package now goes through a package-level smoke test before upload, covering dependency metadata, unpack/install, expected plugin/API file paths, ELF headers, API JSON syntax, and bundled package docs
 - each release uploads prebuilt packages for:
   - Debian / Ubuntu as `.deb`
   - RPM-based distributions as `.rpm`

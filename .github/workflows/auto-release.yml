@@ -195,7 +195,7 @@ jobs:
             --plugin-lib-dir "${{ matrix.plugin_lib_dir }}"
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prebuilt-${{ matrix.distro_id }}
           path: dist/*
@@ -234,7 +234,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Download built artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
