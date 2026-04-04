@@ -80,7 +80,6 @@
 char *strdup __P ((char *) );
 #endif
 
-// ZDY: remove not used complaints.
 // static const char rcsid[] = RCSID;
 
 struct option_value
@@ -93,8 +92,7 @@ struct option_value
 /*
  * Option variables and default values.
  */
-// ZDY: enable debug for test.
-int debug = 1;		      /* Debug flag */
+int debug = 0;		      /* Debug flag */
 bool nodetach = 0;	      /* Don't detach from controlling tty */
 bool updetach = 0;	      /* Detach once link is up */
 bool master_detach;	      /* Detach when we're (only) multilink master */
@@ -137,16 +135,11 @@ int option_priority = OPRIO_CFGFILE; /* priority of the current options */
  * \<newline> is ignored.
  */
 int
-getword (f, word, newlinep, filename)
-FILE *f;
-char *word;
-int *newlinep;
-char *filename;
+getword (FILE *f, char *word, int *newlinep, char *filename)
 {
-  // ZDY: will be removed later.
-  f = f;
-  word = word;
-  newlinep = newlinep;
-  filename = filename;
+  (void) f;
+  (void) word;
+  (void) newlinep;
+  (void) filename;
   return 0;
 }

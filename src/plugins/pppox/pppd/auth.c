@@ -200,7 +200,7 @@ extern char *crypt __P ((const char *, const char *) );
 
 static void network_phase __P ((int) );
 
-// ZDY: add an auth context to store unit to support multiple instances.
+/* Per-unit auth context used by the imported callbacks. */
 typedef struct auth_context
 {
   int unit; /* Interface unit number */
@@ -217,17 +217,18 @@ init_auth_context (int unit)
 /*
  * An Open on LCP has requested a change from Dead to Establish phase.
  */
-void link_required (unit) int unit;
+void
+link_required (int unit)
 {
 }
 
 /*
  * Bring the link up to the point of being able to do ppp.
  */
-void start_link (unit) int unit;
+void
+start_link (int unit)
 {
-  // ZDY: we make lower up firstly, so we can directly shift
-  // to establish.
+  /* The VPP integration keeps the lower layer up, so enter establish directly. */
   status = EXIT_NEGOTIATION_FAILED;
   new_phase (unit, PHASE_ESTABLISH);
   lcp_lowerup (unit);
@@ -238,7 +239,8 @@ void start_link (unit) int unit;
  * LCP has terminated the link; go to the Dead phase and take the
  * physical layer down.
  */
-void link_terminated (unit) int unit;
+void
+link_terminated (int unit)
 {
   if (phase[unit] == PHASE_DEAD || phase[unit] == PHASE_MASTER)
     return;
@@ -263,7 +265,8 @@ void link_terminated (unit) int unit;
 /*
  * LCP has gone down; it will either die or try to re-establish.
  */
-void link_down (unit) int unit;
+void
+link_down (int unit)
 {
   if (!doing_multilink)
     {
@@ -298,7 +301,8 @@ upper_layers_down (int unit)
  * The link is established.
  * Proceed to the Dead, Authenticate or Network phase as appropriate.
  */
-void link_established (unit) int unit;
+void
+link_established (int unit)
 {
   int auth;
   lcp_options *go = &lcp_gotoptions[unit];
@@ -345,7 +349,7 @@ void link_established (unit) int unit;
     }
   else if (ho->neg_upap)
     {
-      // ZDY: password will be set by new-ly introduced API.
+      /* Credentials are supplied through the PPPoX runtime state. */
       upap_authwithpeer (unit);
       auth |= PAP_WITHPEER;
     }
@@ -359,7 +363,8 @@ void link_established (unit) int unit;
 /*
  * Proceed to the network phase.
  */
-static void network_phase (unit) int unit;
+static void
+network_phase (int unit)
 {
   lcp_options *go = &lcp_gotoptions[unit];
 
@@ -390,7 +395,8 @@ static void network_phase (unit) int unit;
   start_networks (unit);
 }
 
-void start_networks (unit) int unit;
+void
+start_networks (int unit)
 {
   int i;
   struct protent *protp;
@@ -431,7 +437,8 @@ void start_networks (unit) int unit;
     continue_networks (unit);
 }
 
-void continue_networks (unit) int unit;
+void
+continue_networks (int unit)
 {
   int i;
   struct protent *protp;
@@ -455,7 +462,8 @@ void continue_networks (unit) int unit;
 /*
  * The peer has failed to authenticate himself using `protocol'.
  */
-void auth_peer_fail (unit, protocol) int unit, protocol;
+void
+auth_peer_fail (int unit, int protocol)
 {
   /*
    * Authentication failure: take the link down
@@ -467,9 +475,8 @@ void auth_peer_fail (unit, protocol) int unit, protocol;
 /*
  * The peer has been successfully authenticated using `protocol'.
  */
-void auth_peer_success (unit, protocol, prot_flavor, name, namelen) int unit, protocol, prot_flavor;
-char *name;
-int namelen;
+void
+auth_peer_success (int unit, int protocol, int prot_flavor, char *name, int namelen)
 {
   int bit;
 
@@ -526,7 +533,8 @@ int namelen;
 /*
  * We have failed to authenticate ourselves to the peer using `protocol'.
  */
-void auth_withpeer_fail (unit, protocol) int unit, protocol;
+void
+auth_withpeer_fail (int unit, int protocol)
 {
   if (passwd_from_file)
     BZERO (passwd, MAXSECRETLEN);
@@ -543,7 +551,8 @@ void auth_withpeer_fail (unit, protocol) int unit, protocol;
 /*
  * We have successfully authenticated ourselves with the peer using `protocol'.
  */
-void auth_withpeer_success (unit, protocol, prot_flavor) int unit, protocol, prot_flavor;
+void
+auth_withpeer_success (int unit, int protocol, int prot_flavor)
 {
   int bit;
   const char *prot = "";
@@ -599,7 +608,8 @@ void auth_withpeer_success (unit, protocol, prot_flavor) int unit, protocol, pro
 /*
  * np_up - a network protocol has come up.
  */
-void np_up (unit, proto) int unit, proto;
+void
+np_up (int unit, int proto)
 {
   if (num_np_up[unit] == 0)
     {
@@ -622,7 +632,8 @@ void np_up (unit, proto) int unit, proto;
 /*
  * np_down - a network protocol has gone down.
  */
-void np_down (unit, proto) int unit, proto;
+void
+np_down (int unit, int proto)
 {
   if (--num_np_up[unit] == 0)
     {
@@ -633,7 +644,8 @@ void np_down (unit, proto) int unit, proto;
 /*
  * np_finished - a network protocol has finished using the link.
  */
-void np_finished (unit, proto) int unit, proto;
+void
+np_finished (int unit, int proto)
 {
   if (--num_np_open[unit] <= 0)
     {
@@ -647,34 +659,28 @@ void np_finished (unit, proto) int unit, proto;
  * authentication options, i.e. whether we have appropriate secrets
  * to use for authenticating ourselves and/or the peer.
  */
-void auth_reset (unit) int unit;
+void
+auth_reset (int unit)
 {
   // lcp_options *go = &lcp_gotoptions[unit];
   lcp_options *ao = &lcp_allowoptions[unit];
   // int hadchap;
 
   // hadchap = -1;
-  //  ZDY: explicitly set to allow upap & chap.
+  /* The VPP integration only negotiates PAP and CHAP here. */
   ao->neg_upap = 1;
   ao->neg_chap = 1;
   ao->chap_mdtype = MDTYPE_MD5;
 }
 
-// ZDY: add _ to client and server to allow access client & server
-// array in chap-new.c
+/* Accessible from chap-new.c for the per-unit CHAP client/server state. */
 /*
  * get_secret - open the CHAP secret file and return the secret
  * for authenticating the given client on the given server.
  * (We could be either client or server).
  */
 int
-get_secret (unit, client, server, secret, secret_len, am_server)
-int unit;
-char *client;
-char *server;
-char *secret;
-int *secret_len;
-int am_server;
+get_secret (int unit, char *client, char *server, char *secret, int *secret_len, int am_server)
 {
   // FILE *f;
   // int ret, len;
@@ -698,8 +704,7 @@ int am_server;
     }
   else
     {
-      // ZDY: we do not leverage file storage, only support client one-way auth which
-      // mean we auth with AC.
+      /* The VPP integration only supports authenticating the local side to the AC. */
       if (!am_server)
 	{
 	  len = chap_client[unit].us_passwdlen;

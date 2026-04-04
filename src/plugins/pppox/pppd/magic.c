@@ -65,7 +65,7 @@ extern void srand48 __P ((long) );
  * and current time, currently.
  */
 void
-magic_init ()
+magic_init (void)
 {
   long seed;
   struct timeval t;
@@ -79,7 +79,7 @@ magic_init ()
  * magic - Returns the next magic number.
  */
 u_int32_t
-magic ()
+magic (void)
 {
   return (u_int32_t) mrand48 ();
 }
@@ -103,18 +103,19 @@ random_bytes (unsigned char *buf, int len)
  */
 
 double
-drand48 ()
+drand48 (void)
 {
   return (double) random () / (double) 0x7fffffffL; /* 2**31-1 */
 }
 
 long
-mrand48 ()
+mrand48 (void)
 {
   return random ();
 }
 
-void srand48 (seedval) long seedval;
+void
+srand48 (long seedval)
 {
   srandom ((int) seedval);
 }

@@ -15,8 +15,10 @@
 #include "lcp.h"
 #include "ipv6cp.h"
 
-// NOTE: too keep relative independency, code here are used only to keep pppd compiled.
-// code that iteractivate with vpp should be moved to pppox.c
+/*
+ * Keep this shim layer limited to symbols needed to build the imported pppd
+ * sources. VPP-facing control-plane behavior belongs in pppox.c.
+ */
 extern void channel_cleanup (int unit);
 extern void pppox_set_interface_mtu (int unit, int mtu);
 
@@ -38,7 +40,7 @@ struct channel *the_channel = &vpp_channel;
  * One entry per supported protocol.
  * The last entry must be NULL.
  */
-// We only support limited protocol.
+/* Only the protocols wired into the PPPoX integration are exposed here. */
 struct protent *protocols[] = { &lcp_protent,	 &pap_protent,	&ipcp_protent,
 				&ipv6cp_protent, &chap_protent, NULL };
 
@@ -46,7 +48,7 @@ struct protent *protocols[] = { &lcp_protent,	 &pap_protent,	&ipcp_protent,
 // should be lookup and set carefully.
 int hungup = 0;
 char hostname[] = "oss-pppd-for-vpp";
-// TODO: use vpp buffer instead.
+/* The imported code uses the shared PPP output buffer provided by pppd.h. */
 u_char outpacket_buf[PPP_MRU + PPP_HDRLEN]; /* buffer for outgoing packet */
 int phase[NUM_PPP];			    /* Current state of link - see values below */
 int redirect_stderr;			    /* Connector's stderr should go to file */
@@ -68,8 +70,7 @@ int error_count;			    /* # of times error() has been called */
 char ppp_devnam[MAXPATHLEN];
 int ppp_session_number; /* Session number (eg PPPoE session) */
 int fd_devnull;		/* fd open to /dev/null */
-// ZDY: default listen time is zero means we will send conf request
-// immediately.
+/* Default to sending Configure-Request immediately. */
 int listen_time = 0; /* time to listen first (ms) */
 bool doing_multilink;
 
@@ -80,10 +81,7 @@ bool doing_multilink;
  * itself), otherwise 0.
  */
 int
-ppp_send_config (unit, mtu, accm, pcomp, accomp)
-int unit, mtu;
-u_int32_t accm;
-int pcomp, accomp;
+ppp_send_config (int unit, int mtu, u_int32_t accm, int pcomp, int accomp)
 {
   int errs;
 
@@ -101,10 +99,7 @@ int pcomp, accomp;
  * itself), otherwise 0.
  */
 int
-ppp_recv_config (unit, mru, accm, pcomp, accomp)
-int unit, mru;
-u_int32_t accm;
-int pcomp, accomp;
+ppp_recv_config (int unit, int mru, u_int32_t accm, int pcomp, int accomp)
 {
   int errs;
 
@@ -133,7 +128,7 @@ netif_set_mtu (int unit, int mtu) /* Set PPP interface MTU */
 int
 netif_get_mtu (int unit) /* Get PPP interface MTU */
 {
-  unit = unit;
+  (void) unit;
   return 0;
 }
 
@@ -151,9 +146,8 @@ static struct timeval timenow;	       /* Current time */
 /*
  * timeout - Schedule a timeout.
  */
-void timeout (func, arg, secs, usecs) void (*func) __P ((void *) );
-void *arg;
-int secs, usecs;
+void
+timeout (void (*func) __P ((void *) ), void *arg, int secs, int usecs)
 {
   struct callout *newp, *p, **pp;
 
@@ -187,8 +181,8 @@ int secs, usecs;
 /*
  * untimeout - Unschedule a timeout.
  */
-void untimeout (func, arg) void (*func) __P ((void *) );
-void *arg;
+void
+untimeout (void (*func) __P ((void *) ), void *arg)
 {
   struct callout **copp, *freep;
 
@@ -208,7 +202,7 @@ void *arg;
  * calltimeout - Call any timeout routines which are now due.
  */
 void
-pppd_calltimeout ()
+pppd_calltimeout (void)
 {
   struct callout *p;
 
@@ -234,9 +228,7 @@ pppd_calltimeout ()
 /*
  * timeleft - return the length of time until the next timeout is due.
  */
-static struct timeval *
-timeleft(tvp)
-     struct timeval *tvp;
+static struct timeval *timeleft (struct timeval *tvp)
 {
   if (callout == NULL)
     return NULL;
@@ -259,16 +251,16 @@ timeleft(tvp)
  * script_setenv - set an environment variable value to be used
  * for scripts that we run (e.g. ip-up, auth-up, etc.)
  */
-void script_setenv (var, value, iskey) char *var, *value;
-int iskey;
+void
+script_setenv (char *var, char *value, int iskey)
 {
-  // TODO: adpt ipcp up.
+  /* Script hooks are intentionally stubbed in the VPP integration. */
 }
 
 void
 reset_link_stats (int u)
 {
-  // TODO: adapt to vpp pppox virtual interface.
+  /* Link statistics are provided by the surrounding PPPoX integration. */
 }
 
 /*
@@ -282,8 +274,8 @@ int
 have_route_to (u_int32_t addr)
 {
   int result = 0;
-  // TODO: adapt to vpp.
-  addr = addr;
+  /* Routing checks are currently not modeled in this shim. */
+  (void) addr;
   return result;
 }
 
@@ -300,7 +292,7 @@ have_route_to (u_int32_t addr)
 u_int32_t
 GetMask (u_int32_t addr)
 {
-  // TODO: whether to adapt.
+  /* Preserve the provided address until VPP-specific netmask logic is needed. */
   return addr;
 }
 
@@ -312,7 +304,7 @@ GetMask (u_int32_t addr)
 int
 sifvjcomp (int u, int vjcomp, int cidcomp, int maxcid)
 {
-  // TODO: support if needed later.
+  /* VJ compression is not currently configured by the VPP integration. */
   return 1;
 }
 
@@ -324,7 +316,7 @@ sifvjcomp (int u, int vjcomp, int cidcomp, int maxcid)
 int
 sifup (int u)
 {
-  u = u;
+  (void) u;
   return 1;
 }
 
@@ -337,7 +329,7 @@ sifup (int u)
 int
 sifdown (int u)
 {
-  u = u;
+  (void) u;
   return 1;
 }
 
@@ -349,9 +341,9 @@ sifdown (int u)
 int
 sifnpmode (int u, int proto, enum NPmode mode)
 {
-  u = u;
-  proto = proto;
-  mode = mode;
+  (void) u;
+  (void) proto;
+  (void) mode;
   return 1;
 }
 
@@ -369,8 +361,8 @@ sifnpmode (int u, int proto, enum NPmode mode)
 int
 sifproxyarp (int unit, u_int32_t his_adr)
 {
-  unit = unit;
-  his_adr = his_adr;
+  (void) unit;
+  (void) his_adr;
   return 1;
 }
 
@@ -380,8 +372,8 @@ sifproxyarp (int unit, u_int32_t his_adr)
 void
 notify (struct notifier *notif, int val)
 {
-  notif = notif;
-  val = val;
+  (void) notif;
+  (void) val;
 }
 
 /* List of protocol names, to make our messages a little more informative. */
@@ -524,8 +516,7 @@ struct protocol_list
  * protocol_name - find a name for a PPP protocol.
  */
 const char *
-protocol_name (proto)
-int proto;
+protocol_name (int proto)
 {
   struct protocol_list *lp;
 

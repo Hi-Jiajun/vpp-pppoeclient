@@ -45,18 +45,33 @@ typedef struct
 #define ETH_JUMBO_LEN 1508
 
 /* PPP Protocol Numbers */
-#define PPP_LCP	   0xc021
-#define PPP_PAP	   0xc023
-#define PPP_CHAP   0xc025
-#define PPP_IPCP   0x8021
+#ifndef PPP_LCP
+#define PPP_LCP 0xc021
+#endif
+#ifndef PPP_PAP
+#define PPP_PAP 0xc023
+#endif
+#ifndef PPP_CHAP
+#define PPP_CHAP 0xc223
+#endif
+#ifndef PPP_IPCP
+#define PPP_IPCP 0x8021
+#endif
+#ifndef PPP_IPV6CP
 #define PPP_IPV6CP 0x8057
-#define PPP_IP	   0x0021
-#define PPP_IPV6   0x0057
+#endif
+#ifndef PPP_IP
+#define PPP_IP 0x0021
+#endif
+#ifndef PPP_IPV6
+#define PPP_IPV6 0x0057
+#endif
 
 /* LCP Packet Types */
 #define LCP_CONFIGURE_REQUEST 1
 #define LCP_CONFIGURE_ACK     2
 #define LCP_CONFIGURE_NAK     3
+#define LCP_CONFIGURE_REJECT  4
 #define LCP_TERMINATE_REQUEST 5
 #define LCP_TERMINATE_ACK     6
 #define LCP_ECHO_REQUEST      9
@@ -151,48 +166,58 @@ typedef struct
   u32 retry_count;
   /* Send next pkt at this time */
   f64 next_transmit;
-  u8 ac_mac_address[6];
-  u8 *ac_name; /* AC-Name from PADO */
-  u16 session_id;
 
   /* pppox intf index */
   u32 pppox_sw_if_index;
   u32 pppox_hw_if_index;
 
-  /* Authentication */
-  u8 *username;
-  u8 *password;
   u32 mtu;
   u32 mru;
   u32 timeout;
 
-  /* Options */
-  u8 use_peer_dns;
-  u8 use_peer_route4; /* add-default-route4: add IPv4 default route */
-  u8 use_peer_route6; /* add-default-route6: add IPv6 default route */
+  u16 session_id;
+  u8 ac_mac_address[6];
+
+  /* Pointers (8-byte aligned on 64-bit) grouped together */
+  u8 *ac_name;	      /* AC-Name from PADO */
+  u8 *ac_name_filter; /* Required AC-Name; empty means accept any AC */
+  u8 *service_name;   /* Requested Service-Name; empty means "any" */
+  u8 *username;
+  u8 *password;
+
+  /* IPv4 state */
   u32 ip4_addr;
   u32 ip4_netmask;
   u32 ip4_gateway;
   u32 dns1;
   u32 dns2;
 
-  /* LCP state */
+  /* IPv6 state (16-byte aligned) */
+  ip6_address_t ip6_addr;
+  ip6_address_t ip6_peer_addr;
+  u8 ipv6_prefix_len;
+
+  /* Pack all u8 flags/state together to minimise padding */
+  u8 use_peer_dns;
+  u8 use_peer_route4; /* add-default-route4: add IPv4 default route */
+  u8 use_peer_route6; /* add-default-route6: add IPv6 default route */
+  u8 use_peer_ipv6;
   u8 lcp_state;
   u8 lcp_id;
   u8 lcp_nak;
-
-  /* IPCP state */
   u8 ipcp_state;
   u8 ipcp_id;
-
-  /* IPv6 options (IPv6CP) */
-  u8 use_peer_ipv6;
-  u8 ipv6_prefix_len;
-  ip6_address_t ip6_addr;
-  ip6_address_t ip6_peer_addr;
-  /* IPv6CP state */
   u8 ipv6cp_state;
   u8 ipv6cp_id;
+
+  /* Last discovery error tag seen (0 = none) */
+  u32 discovery_error;
+
+  /* Session statistics */
+  u32 total_reconnects;	     /* lifetime reconnect count */
+  u8 last_disconnect_reason; /* 0=none, 1=PADT, 2=echo-timeout, 3=admin */
+  u8 stats_pad[3];
+  f64 session_start_time; /* vlib_time_now when SESSION state entered */
 } pppoe_client_t;
 
 typedef enum
@@ -238,14 +263,14 @@ typedef enum
 } pppoeclient_session_output_next_t;
 
 #define MTU		     1500
-#define MTU_BUFFERS	     ((MTU + VLIB_BUFFER_DATA_SIZE - 1) / VLIB_BUFFER_DATA_SIZE)
+#define MTU_BUFFERS	     1
 #define NUM_BUFFERS_TO_ALLOC 32
 
 /*
  * The size of pppoe client table
  */
 #define PPPOE_CLIENT_NUM_BUCKETS 128
-#define PPPOE_CLIENT_MEMORY_SIZE 64 << 20
+#define PPPOE_CLIENT_MEMORY_SIZE (64 << 20)
 /*
  * The PPPoE client key is the sw if index and host uniq
  */
@@ -313,6 +338,9 @@ typedef struct
   /* Mapping from pppox sw_if_index to client index */
   u32 *client_index_by_pppox_sw_if_index;
 
+  /* Access-interface refcounts for pppoeclient-dispatch */
+  u32 *dispatch_refcount_by_sw_if_index;
+
   /* API message ID base */
   u16 msg_id_base;
 
@@ -327,6 +355,12 @@ typedef struct
 
 #define EVENT_PPPOE_CLIENT_WAKEUP 1
 
+/* last_disconnect_reason values */
+#define PPPOECLIENT_DISCONNECT_NONE	    0
+#define PPPOECLIENT_DISCONNECT_PADT	    1
+#define PPPOECLIENT_DISCONNECT_ECHO_TIMEOUT 2
+#define PPPOECLIENT_DISCONNECT_ADMIN	    3
+
 extern pppoeclient_main_t pppoeclient_main;
 
 extern vlib_node_registration_t pppoeclient_discovery_input_node;
@@ -338,11 +372,21 @@ typedef struct
   u8 is_add;
   u32 sw_if_index;
   u32 host_uniq;
+  u8 *ac_name_filter;
+  u8 *service_name;
 } vnet_pppoeclient_add_del_args_t;
 
 int vnet_pppoeclient_add_del (vnet_pppoeclient_add_del_args_t *, u32 *);
 
 int consume_pppoe_discovery_pkt (u32, vlib_buffer_t *, pppoe_header_t *);
+
+void pppoe_client_open_session (u32 client_index);
+void pppoe_client_restart_session (u32 client_index);
+void pppoe_client_stop_session (u32 client_index);
+int sync_pppoe_client_live_auth (pppoe_client_t *c);
+int sync_pppoe_client_live_default_route4 (pppoe_client_t *c);
+int sync_pppoe_client_live_default_route6 (pppoe_client_t *c);
+int sync_pppoe_client_live_use_peer_dns (pppoe_client_t *c);
 
 always_inline u64
 pppoeclient_make_key (u32 sw_if_index, u32 host_uniq)
@@ -490,8 +534,13 @@ pppoeclient_get_l2_encap_len (vnet_main_t *vnm, u32 sw_if_index)
 {
   vnet_sw_interface_t *sw = vnet_get_sw_interface (vnm, sw_if_index);
 
-  if (sw->type == VNET_SW_INTERFACE_TYPE_SUB && sw->sub.eth.flags.one_tag == 1)
-    return sizeof (ethernet_header_t) + sizeof (ethernet_vlan_header_t);
+  if (sw->type == VNET_SW_INTERFACE_TYPE_SUB)
+    {
+      if (sw->sub.eth.flags.two_tags == 1)
+	return sizeof (ethernet_header_t) + 2 * sizeof (ethernet_vlan_header_t);
+      if (sw->sub.eth.flags.one_tag == 1)
+	return sizeof (ethernet_header_t) + sizeof (ethernet_vlan_header_t);
+    }
 
   return sizeof (ethernet_header_t);
 }
@@ -509,6 +558,19 @@ pppoeclient_push_l2_header (vnet_main_t *vnm, u32 sw_if_index, vlib_buffer_t *b,
 
   clib_memcpy (eth->src_address, src_address, sizeof (eth->src_address));
   clib_memcpy (eth->dst_address, dst_address, sizeof (eth->dst_address));
+
+  if (sw->type == VNET_SW_INTERFACE_TYPE_SUB && sw->sub.eth.flags.two_tags == 1)
+    {
+      ethernet_vlan_header_t *outer, *inner;
+      outer = (ethernet_vlan_header_t *) (eth + 1);
+      eth->type = clib_host_to_net_u16 (ETHERNET_TYPE_VLAN);
+      outer->priority_cfi_and_id = clib_host_to_net_u16 (sw->sub.eth.outer_vlan_id);
+      outer->type = clib_host_to_net_u16 (ETHERNET_TYPE_VLAN);
+      inner = outer + 1;
+      inner->priority_cfi_and_id = clib_host_to_net_u16 (sw->sub.eth.inner_vlan_id);
+      inner->type = clib_host_to_net_u16 (ethertype);
+      return (pppoe_header_t *) (inner + 1);
+    }
 
   if (sw->type == VNET_SW_INTERFACE_TYPE_SUB && sw->sub.eth.flags.one_tag == 1)
     {
@@ -536,6 +598,13 @@ pppoeclient_get_l2_info (vlib_buffer_t *b, ethernet_header_t **eth_hdr, pppoe_he
       ethernet_vlan_header_t *vlan = (ethernet_vlan_header_t *) (eth + 1);
       type = clib_net_to_host_u16 (vlan->type);
       hdr_len += sizeof (*vlan);
+      /* QinQ: second VLAN tag */
+      if (type == ETHERNET_TYPE_VLAN)
+	{
+	  vlan = (ethernet_vlan_header_t *) (((u8 *) eth) + hdr_len);
+	  type = clib_net_to_host_u16 (vlan->type);
+	  hdr_len += sizeof (*vlan);
+	}
     }
 
   if (eth_hdr)
@@ -550,7 +619,7 @@ pppoeclient_get_l2_info (vlib_buffer_t *b, ethernet_header_t **eth_hdr, pppoe_he
   return type == ETHERNET_TYPE_PPPOE_DISCOVERY || type == ETHERNET_TYPE_PPPOE_SESSION;
 }
 
-#endif /* _PPPOE_H */
+#endif /* _PPPOECLIENT_H */
 
 /*
  *

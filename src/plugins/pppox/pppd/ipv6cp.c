@@ -98,7 +98,8 @@ static struct fsm_callbacks ipv6cp_callbacks = {
 /*
  * ipv6cp_init - Initialize IPv6CP.
  */
-static void ipv6cp_init (unit) int unit;
+static void
+ipv6cp_init (int unit)
 {
   fsm *f = &ipv6cp_fsm[unit];
 
@@ -132,7 +133,8 @@ static void ipv6cp_init (unit) int unit;
 /*
  * ipv6cp_resetci - Reset our Configuration Information
  */
-static void ipv6cp_resetci (f) fsm *f;
+static void
+ipv6cp_resetci (fsm *f)
 {
   ipv6cp_options *wo = &ipv6cp_wantoptions[f->unit];
   ipv6cp_options *ao = &ipv6cp_allowoptions[f->unit];
@@ -154,8 +156,7 @@ static void ipv6cp_resetci (f) fsm *f;
  * ipv6cp_cilen - Length of our Configuration Information
  */
 static int
-ipv6cp_cilen (f)
-fsm *f;
+ipv6cp_cilen (fsm *f)
 {
   ipv6cp_options *go = &ipv6cp_gotoptions[f->unit];
 
@@ -165,9 +166,8 @@ fsm *f;
 /*
  * ipv6cp_addci - Add our Configuration Information
  */
-static void ipv6cp_addci (f, cp, lenp) fsm *f;
-u_char *cp;
-int *lenp;
+static void
+ipv6cp_addci (fsm *f, u_char *cp, int *lenp)
 {
   ipv6cp_options *go = &ipv6cp_gotoptions[f->unit];
 
@@ -184,10 +184,7 @@ int *lenp;
  * ipv6cp_ackci - ACK our Configuration Information
  */
 static int
-ipv6cp_ackci (f, cp, len)
-fsm *f;
-u_char *cp;
-int len;
+ipv6cp_ackci (fsm *f, u_char *cp, int len)
 {
   ipv6cp_options *go = &ipv6cp_gotoptions[f->unit];
   int ret = 1;
@@ -222,14 +219,9 @@ int len;
  * ipv6cp_nakci - NAK our Configuration Information
  */
 static int
-ipv6cp_nakci (f, cp, len, treat_as_reject)
-fsm *f;
-u_char *cp;
-int len;
-int treat_as_reject;
+ipv6cp_nakci (fsm *f, u_char *cp, int len, int treat_as_reject)
 {
   ipv6cp_options *go = &ipv6cp_gotoptions[f->unit];
-  ipv6cp_options *wo = &ipv6cp_wantoptions[f->unit];
   ipv6cp_options *ho = &ipv6cp_hisoptions[f->unit];
   int ret = 1;
 
@@ -275,10 +267,7 @@ int treat_as_reject;
  * ipv6cp_rejci - Reject our Configuration Information
  */
 static int
-ipv6cp_rejci (f, cp, len)
-fsm *f;
-u_char *cp;
-int len;
+ipv6cp_rejci (fsm *f, u_char *cp, int len)
 {
   ipv6cp_options *go = &ipv6cp_gotoptions[f->unit];
   ipv6cp_options *ho = &ipv6cp_hisoptions[f->unit];
@@ -315,7 +304,8 @@ int len;
   return ret;
 }
 
-static int ipv6cp_ifaceid_is_zero (id) const u8 *id;
+static int
+ipv6cp_ifaceid_is_zero (const u8 *id)
 {
   int i;
 
@@ -326,8 +316,8 @@ static int ipv6cp_ifaceid_is_zero (id) const u8 *id;
   return 1;
 }
 
-static void ipv6cp_generate_ifaceid (id, avoid) u8 *id;
-const u8 *avoid;
+static void
+ipv6cp_generate_ifaceid (u8 *id, const u8 *avoid)
 {
   do
     {
@@ -339,9 +329,8 @@ const u8 *avoid;
   while (ipv6cp_ifaceid_is_zero (id) || (avoid != 0 && bcmp (id, avoid, 8) == 0));
 }
 
-static void ipv6cp_get_suggested_ifaceid (go, wo, id) ipv6cp_options *go;
-ipv6cp_options *wo;
-u8 *id;
+static void
+ipv6cp_get_suggested_ifaceid (ipv6cp_options *go, ipv6cp_options *wo, u8 *id)
 {
   if (ipv6cp_ifaceid_is_zero (wo->hisid) ||
       (go->neg_ifaceid && bcmp (wo->hisid, go->ourid, 8) == 0))
@@ -354,11 +343,7 @@ u8 *id;
  * ipv6cp_reqci - Request peer's Configuration Information
  */
 static int
-ipv6cp_reqci (f, inp, len, reject_as_is)
-fsm *f;
-u_char *inp;
-int *len;
-int reject_as_is;
+ipv6cp_reqci (fsm *f, u_char *inp, int *len, int reject_as_is)
 {
   ipv6cp_options *wo = &ipv6cp_wantoptions[f->unit];
   ipv6cp_options *ao = &ipv6cp_allowoptions[f->unit];
@@ -481,7 +466,8 @@ int reject_as_is;
 /*
  * ipv6cp_up - IPv6CP has come up
  */
-static void ipv6cp_up (f) fsm *f;
+static void
+ipv6cp_up (fsm *f)
 {
   ipv6cp_options *go = &ipv6cp_gotoptions[f->unit];
   ipv6cp_options *ho = &ipv6cp_hisoptions[f->unit];
@@ -525,7 +511,8 @@ static void ipv6cp_up (f) fsm *f;
 /*
  * ipv6cp_down - IPv6CP has gone down
  */
-static void ipv6cp_down (f) fsm *f;
+static void
+ipv6cp_down (fsm *f)
 {
   ipv6cp_options *go = &ipv6cp_gotoptions[f->unit];
   ipv6cp_options *ho = &ipv6cp_hisoptions[f->unit];
@@ -550,7 +537,8 @@ static void ipv6cp_down (f) fsm *f;
 /*
  * ipv6cp_starting - IPv6CP needs to start
  */
-static void ipv6cp_starting (f) fsm *f;
+static void
+ipv6cp_starting (fsm *f)
 {
   ipv6cp_is_open[f->unit] = 0;
 }
@@ -558,7 +546,8 @@ static void ipv6cp_starting (f) fsm *f;
 /*
  * ipv6cp_finished - IPv6CP finished
  */
-static void ipv6cp_finished (f) fsm *f;
+static void
+ipv6cp_finished (fsm *f)
 {
   if (ipv6cp_is_open[f->unit])
     {
@@ -571,7 +560,8 @@ static void ipv6cp_finished (f) fsm *f;
 /*
  * ipv6cp_protrej - Protocol Reject received
  */
-static void ipv6cp_protrej (unit) int unit;
+static void
+ipv6cp_protrej (int unit)
 {
   /* Protocol rejected, bring down the protocol */
   if (ipv6cp_is_up[unit])
@@ -586,9 +576,8 @@ static void ipv6cp_protrej (unit) int unit;
 /*
  * ipv6cp_input - Handle IPv6CP packet
  */
-static void ipv6cp_input (unit, p, len) int unit;
-u_char *p;
-int len;
+static void
+ipv6cp_input (int unit, u_char *p, int len)
 {
   fsm *f = &ipv6cp_fsm[unit];
 
@@ -598,7 +587,8 @@ int len;
 /*
  * ipv6cp_protrej - Protocol Reject for IPv6CP
  */
-static void ipv6cp_protrej_unit (unit) int unit;
+static void
+ipv6cp_protrej_unit (int unit)
 {
   fsm *f = &ipv6cp_fsm[unit];
 
@@ -608,7 +598,8 @@ static void ipv6cp_protrej_unit (unit) int unit;
 /*
  * ipv6cp_lowerup - Lower layer is up
  */
-static void ipv6cp_lowerup (unit) int unit;
+static void
+ipv6cp_lowerup (int unit)
 {
   fsm *f = &ipv6cp_fsm[unit];
 
@@ -618,7 +609,8 @@ static void ipv6cp_lowerup (unit) int unit;
 /*
  * ipv6cp_lowerdown - Lower layer is down
  */
-static void ipv6cp_lowerdown (unit) int unit;
+static void
+ipv6cp_lowerdown (int unit)
 {
   fsm *f = &ipv6cp_fsm[unit];
 
@@ -628,7 +620,8 @@ static void ipv6cp_lowerdown (unit) int unit;
 /*
  * ipv6cp_open - Open IPv6CP
  */
-static void ipv6cp_open (unit) int unit;
+static void
+ipv6cp_open (int unit)
 {
   fsm *f = &ipv6cp_fsm[unit];
 
@@ -642,8 +635,8 @@ static void ipv6cp_open (unit) int unit;
 /*
  * ipv6cp_close - Close IPv6CP
  */
-static void ipv6cp_close (unit, reason) int unit;
-char *reason;
+static void
+ipv6cp_close (int unit, char *reason)
 {
   fsm *f = &ipv6cp_fsm[unit];
 
@@ -658,11 +651,7 @@ char *reason;
  * ipv6cp_printpkt - Print IPv6CP packet
  */
 static int
-ipv6cp_printpkt (p, len, printer, arg)
-u_char *p;
-int len;
-printer_func printer;
-void *arg;
+ipv6cp_printpkt (u_char *p, int len, printer_func printer, void *arg)
 {
   return 0;
 }
@@ -671,9 +660,7 @@ void *arg;
  * ipv6cp_active_pkt - Process IPv6CP packet
  */
 static int
-ipv6cp_active_pkt (p, len)
-u_char *p;
-int len;
+ipv6cp_active_pkt (u_char *p, int len)
 {
   return 1;
 }

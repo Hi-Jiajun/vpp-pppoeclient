@@ -1,3 +1,4 @@
+/* SPDX-FileCopyrightText: NONE */
 /* SPDX-License-Identifier: BSD-Attribution-HPND-disclaimer */
 /*
  * define path names

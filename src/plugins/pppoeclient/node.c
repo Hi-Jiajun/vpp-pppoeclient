@@ -9,6 +9,7 @@
 
 #include <ppp/packet.h>
 
+#include <vnet/tcp/tcp_packet.h>
 #include <pppox/pppox.h>
 #include <pppoeclient/pppoeclient.h>
 
@@ -49,8 +50,6 @@ static char *pppoeclient_error_strings[] = {
 #include <pppoeclient/pppoeclient_error.def>
 
 #undef pppoeclient_error
-
-#undef _
 
 };
 
@@ -159,6 +158,12 @@ pppoeclient_discovery_input (vlib_main_t *vm,
 
 	  pppoe0 = vlib_buffer_get_current (b0);
 
+	  if (PREDICT_FALSE (pppoe0->ver_type != PPPOE_VER_TYPE))
+	    {
+	      error0 = PPPOECLIENT_ERROR_BAD_VER_TYPE;
+	      goto trace00;
+	    }
+
 	  switch (pppoe0->code)
 	    {
 
@@ -192,8 +197,9 @@ pppoeclient_discovery_input (vlib_main_t *vm,
 		= vlib_add_trace (vm, node, b0, sizeof (*tr));
 
 	      tr->error = error0;
-
-	      // TODO: fill trace...
+	      tr->sw_if_index = vnet_buffer (b0)->sw_if_index[VLIB_RX];
+	      tr->session_id = clib_net_to_host_u16 (pppoe0->session_id);
+	      tr->packet_code = pppoe0->code;
 	    }
 
 	  vlib_validate_buffer_enqueue_x1 (vm, node, next_index,
@@ -253,62 +259,121 @@ VLIB_REGISTER_NODE (pppoeclient_discovery_input_node) = {
 
 /////// SESSION NODE /////
 
-// ethernet II MTU(1500B) - pppoe overhead(8B) - IPv4(20B) - TCP(20B) = 1452
-// ethernet II MTU(1500B) - pppoe overhead(8B) - IPv6(40B) - TCP(20B) = 1432
-#define PPPOE_DEFAULT_TCP_MSS_V4 1452
-#define PPPOE_DEFAULT_TCP_MSS_V6 1432
-
-static_always_inline void
-try_clamp_tcp_mss_in_syn (tcp_header_t *tcp0, u16 max_mss)
+static_always_inline u16
+pppoeclient_get_tcp_mss_limit (vnet_main_t *vnm, u32 sw_if_index, u8 is_ip6)
 {
-  if (!(tcp0->flags & TCP_FLAG_SYN))
-    return;
+  vnet_sw_interface_t *sw;
+  u32 mtu = 1492;
+  u32 headers = sizeof (tcp_header_t) + (is_ip6 ? sizeof (ip6_header_t) : sizeof (ip4_header_t));
 
-  u8 opts_len = (tcp_doff (tcp0) << 2) - sizeof (tcp_header_t);
-  u8 *data = (u8 *) (tcp0 + 1);
-
-  /* MSS option: kind=2, length=4, value(2 bytes) */
-  if (opts_len >= 4 && TCP_OPTION_MSS == data[0])
+  if (sw_if_index != ~0)
     {
-      u16 mss = clib_net_to_host_u16 (*(u16 *) (data + 2));
-      if (mss > max_mss)
-	{
-	  u16 new_mss_net = clib_host_to_net_u16 (max_mss);
-	  ip_csum_t sum0 = tcp0->checksum;
-	  sum0 = ip_csum_update (sum0, *(u16 *) (data + 2), new_mss_net, ip4_header_t, /* cheat */
-				 length /* changed member */);
-	  *(u16 *) (data + 2) = new_mss_net;
-	  tcp0->checksum = ip_csum_fold (sum0);
-	}
+      sw = vnet_get_sw_interface (vnm, sw_if_index);
+      if (sw->mtu[VNET_MTU_L3] > 0)
+	mtu = sw->mtu[VNET_MTU_L3];
     }
+
+  if (mtu <= headers)
+    return 0;
+
+  return (u16) (mtu - headers);
 }
 
-static void
-try_update_tcp_mss (vlib_buffer_t *b0)
+static_always_inline u32
+pppoeclient_tcp_mss_fixup (tcp_header_t *tcp, u16 max_mss)
 {
-  unsigned char *ppp0 = vlib_buffer_get_current (b0);
-  u16 ppp_protocol = clib_net_to_host_u16 (*(u16 *) ppp0);
+  ip_csum_t sum;
 
-  if (PPP_PROTOCOL_ip4 == ppp_protocol)
+  if (max_mss == 0 || !tcp_syn (tcp))
+    return 0;
+
+  u8 opts_len = (tcp_doff (tcp) << 2) - sizeof (tcp_header_t);
+  const u8 *data = (const u8 *) (tcp + 1);
+
+  for (; opts_len > 0;)
     {
-      ip4_header_t *ip0 = (ip4_header_t *) (ppp0 + 2); // skip ppp protocol.
-      if (IP_PROTOCOL_TCP == ip0->protocol)
+      u8 kind = data[0];
+      u8 opt_len;
+
+      if (kind == TCP_OPTION_EOL)
+	break;
+      if (kind == TCP_OPTION_NOOP)
 	{
-	  tcp_header_t *tcp0 = ip4_next_header (ip0);
-	  try_clamp_tcp_mss_in_syn (tcp0, PPPOE_DEFAULT_TCP_MSS_V4);
+	  data++;
+	  opts_len--;
+	  continue;
+	}
+
+      if (opts_len < 2)
+	return 0;
+      opt_len = data[1];
+      if (opt_len < 2 || opt_len > opts_len)
+	return 0;
+
+      if (kind == TCP_OPTION_MSS && opt_len == 4)
+	{
+	  u16 old_mss = *(u16 *) (data + 2);
+	  if (clib_net_to_host_u16 (old_mss) > max_mss)
+	    {
+	      u16 new_mss = clib_host_to_net_u16 (max_mss);
+	      *((u16 *) (data + 2)) = new_mss;
+	      sum = tcp->checksum;
+	      sum = ip_csum_update (sum, old_mss, new_mss, tcp_header_t, checksum);
+	      tcp->checksum = ip_csum_fold (sum);
+	      return 1;
+	    }
+	  break;
+	}
+
+      data += opt_len;
+      opts_len -= opt_len;
+    }
+
+  return 0;
+}
+
+static_always_inline void
+pppoeclient_try_update_tcp_mss (vlib_main_t *vm, vnet_main_t *vnm, vlib_buffer_t *b,
+				u32 sw_if_index)
+{
+  u8 *ppp = vlib_buffer_get_current (b);
+
+  /* Need at least 2 bytes for PPP protocol field */
+  if (PREDICT_FALSE (b->current_length < 2))
+    return;
+
+  u16 ppp_protocol = clib_net_to_host_u16 (*(u16 *) ppp);
+
+  if (ppp_protocol == PPP_PROTOCOL_ip4)
+    {
+      /* Need PPP proto (2) + IP4 header (20) minimum */
+      if (PREDICT_FALSE (b->current_length < 2 + sizeof (ip4_header_t)))
+	return;
+      ip4_header_t *ip4 = (ip4_header_t *) (ppp + 2);
+      if (ip4->protocol == IP_PROTOCOL_TCP)
+	{
+	  /* Need PPP proto (2) + IP4 header + TCP header (20) minimum */
+	  if (PREDICT_FALSE (b->current_length <
+			     2 + ip4_header_bytes (ip4) + sizeof (tcp_header_t)))
+	    return;
+	  tcp_header_t *tcp = ip4_next_header (ip4);
+	  u16 max_mss = pppoeclient_get_tcp_mss_limit (vnm, sw_if_index, 0);
+	  (void) pppoeclient_tcp_mss_fixup (tcp, max_mss);
 	}
     }
-  else if (PPP_PROTOCOL_ip6 == ppp_protocol)
+  else if (ppp_protocol == PPP_PROTOCOL_ip6)
     {
-      ip6_header_t *ip6_0 = (ip6_header_t *) (ppp0 + 2); // skip ppp protocol.
-      if (IP_PROTOCOL_TCP == ip6_0->protocol)
+      /* Need PPP proto (2) + IP6 header (40) minimum */
+      if (PREDICT_FALSE (b->current_length < 2 + sizeof (ip6_header_t)))
+	return;
+      ip6_header_t *ip6 = (ip6_header_t *) (ppp + 2);
+      tcp_header_t *tcp = ip6_ext_header_find (vm, b, ip6, IP_PROTOCOL_TCP, NULL);
+      if (tcp)
 	{
-	  tcp_header_t *tcp0 = (tcp_header_t *) (ip6_0 + 1);
-	  try_clamp_tcp_mss_in_syn (tcp0, PPPOE_DEFAULT_TCP_MSS_V6);
+	  u16 max_mss = pppoeclient_get_tcp_mss_limit (vnm, sw_if_index, 1);
+	  (void) pppoeclient_tcp_mss_fixup (tcp, max_mss);
 	}
     }
-
-  return;
 }
 
 typedef struct
@@ -358,7 +423,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 
   u32 n_left_from, next_index, *from, *to_next;
 
-  u32 session_pkts = 0;
+  u32 session_pkts = from_frame->n_vectors;
 
   from = vlib_frame_vector_args (from_frame);
 
@@ -384,7 +449,8 @@ pppoeclient_session_input (vlib_main_t *vm,
 
 	  vlib_buffer_t *b0, *b1;
 
-	  u32 next0, next1;
+	  u32 next0 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
+	  u32 next1 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
 
 	  ethernet_header_t *h0, *h1;
 
@@ -452,6 +518,39 @@ pppoeclient_session_input (vlib_main_t *vm,
 	  vlib_buffer_reset (b1);
 	  (void) pppoeclient_get_l2_info (b1, &h1, &pppoe1, 0, &l2_hdr_len1);
 
+	  /* Validate ver_type, minimum length and PPPoE length field */
+	  if (PREDICT_FALSE (pppoe0->ver_type != PPPOE_VER_TYPE ||
+			     b0->current_length < l2_hdr_len0 + sizeof (*pppoe0) + 2))
+	    {
+	      error0 = PPPOECLIENT_ERROR_BAD_VER_TYPE;
+	      next0 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
+	      goto trace0;
+	    }
+
+	  if (PREDICT_FALSE (clib_net_to_host_u16 (pppoe0->length) >
+			     b0->current_length - l2_hdr_len0 - sizeof (*pppoe0)))
+	    {
+	      error0 = PPPOECLIENT_ERROR_BAD_CODE_IN_SESSION;
+	      next0 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
+	      goto trace0;
+	    }
+
+	  if (PREDICT_FALSE (pppoe1->ver_type != PPPOE_VER_TYPE ||
+			     b1->current_length < l2_hdr_len1 + sizeof (*pppoe1) + 2))
+	    {
+	      error1 = PPPOECLIENT_ERROR_BAD_VER_TYPE;
+	      next1 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
+	      goto trace1;
+	    }
+
+	  if (PREDICT_FALSE (clib_net_to_host_u16 (pppoe1->length) >
+			     b1->current_length - l2_hdr_len1 - sizeof (*pppoe1)))
+	    {
+	      error1 = PPPOECLIENT_ERROR_BAD_CODE_IN_SESSION;
+	      next1 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
+	      goto trace1;
+	    }
+
 	  ppp_proto0 = clib_net_to_host_u16 (*(u16 *) (pppoe0 + 1));
 
 	  ppp_proto1 = clib_net_to_host_u16 (*(u16 *) (pppoe1 + 1));
@@ -511,10 +610,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 	  if (ppp_proto0 == PPP_PROTOCOL_ip4)
 
 	    {
-
-	      // do before skip ppp protocol.
-
-	      try_update_tcp_mss (b0);
+	      pppoeclient_try_update_tcp_mss (vm, pem->vnet_main, b0, c0->pppox_sw_if_index);
 
 	      // give only ip4 packet for ip4-input.
 
@@ -526,6 +622,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 	  else if (ppp_proto0 == PPP_PROTOCOL_ip6)
 
 	    {
+	      pppoeclient_try_update_tcp_mss (vm, pem->vnet_main, b0, c0->pppox_sw_if_index);
 
 	      // give only ip6 packet for ip6-input.
 
@@ -577,14 +674,11 @@ pppoeclient_session_input (vlib_main_t *vm,
 
 	      tr->error = error0;
 
+	      tr->sw_if_index = rx_sw_if_index0;
+
 	      tr->session_id = clib_net_to_host_u16 (pppoe0->session_id);
 
-	      if (c0 != 0)
-
-		{
-
-		  tr->pppox_sw_if_index = c0->pppox_sw_if_index;
-		}
+	      tr->pppox_sw_if_index = c0 ? c0->pppox_sw_if_index : ~0;
 	    }
 
 	  /* Manipulate packet 1 */
@@ -642,10 +736,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 	  if (ppp_proto1 == PPP_PROTOCOL_ip4)
 
 	    {
-
-	      // do before skip ppp protocol.
-
-	      try_update_tcp_mss (b1);
+	      pppoeclient_try_update_tcp_mss (vm, pem->vnet_main, b1, c1->pppox_sw_if_index);
 
 	      // give only ip4 packet for ip4-input.
 
@@ -657,6 +748,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 	  else if (ppp_proto1 == PPP_PROTOCOL_ip6)
 
 	    {
+	      pppoeclient_try_update_tcp_mss (vm, pem->vnet_main, b1, c1->pppox_sw_if_index);
 
 	      // give only ip6 packet for ip6-input.
 
@@ -708,14 +800,11 @@ pppoeclient_session_input (vlib_main_t *vm,
 
 	      tr->error = error1;
 
+	      tr->sw_if_index = rx_sw_if_index1;
+
 	      tr->session_id = clib_net_to_host_u16 (pppoe1->session_id);
 
-	      if (c1 != 0)
-
-		{
-
-		  tr->pppox_sw_if_index = c1->pppox_sw_if_index;
-		}
+	      tr->pppox_sw_if_index = c1 ? c1->pppox_sw_if_index : ~0;
 	    }
 
 	  vlib_validate_buffer_enqueue_x2 (vm, node, next_index,
@@ -733,7 +822,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 
 	  vlib_buffer_t *b0;
 
-	  u32 next0;
+	  u32 next0 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
 
 	  ethernet_header_t *h0;
 
@@ -768,6 +857,23 @@ pppoeclient_session_input (vlib_main_t *vm,
 
 	  vlib_buffer_reset (b0);
 	  (void) pppoeclient_get_l2_info (b0, &h0, &pppoe0, 0, &l2_hdr_len0);
+
+	  /* Validate ver_type, minimum length and PPPoE length field */
+	  if (PREDICT_FALSE (pppoe0->ver_type != PPPOE_VER_TYPE ||
+			     b0->current_length < l2_hdr_len0 + sizeof (*pppoe0) + 2))
+	    {
+	      error0 = PPPOECLIENT_ERROR_BAD_VER_TYPE;
+	      next0 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
+	      goto trace00;
+	    }
+
+	  if (PREDICT_FALSE (clib_net_to_host_u16 (pppoe0->length) >
+			     b0->current_length - l2_hdr_len0 - sizeof (*pppoe0)))
+	    {
+	      error0 = PPPOECLIENT_ERROR_BAD_CODE_IN_SESSION;
+	      next0 = PPPOECLIENT_SESSION_INPUT_NEXT_DROP;
+	      goto trace00;
+	    }
 
 	  ppp_proto0 = clib_net_to_host_u16 (*(u16 *) (pppoe0 + 1));
 
@@ -826,10 +932,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 	  if (ppp_proto0 == PPP_PROTOCOL_ip4)
 
 	    {
-
-	      // do before skip ppp protocol.
-
-	      try_update_tcp_mss (b0);
+	      pppoeclient_try_update_tcp_mss (vm, pem->vnet_main, b0, c0->pppox_sw_if_index);
 
 	      // give only ip4 packet for ip4-input.
 
@@ -841,6 +944,7 @@ pppoeclient_session_input (vlib_main_t *vm,
 	  else if (ppp_proto0 == PPP_PROTOCOL_ip6)
 
 	    {
+	      pppoeclient_try_update_tcp_mss (vm, pem->vnet_main, b0, c0->pppox_sw_if_index);
 
 	      // give only ip6 packet for ip6-input.
 
@@ -892,14 +996,11 @@ pppoeclient_session_input (vlib_main_t *vm,
 
 	      tr->error = error0;
 
+	      tr->sw_if_index = rx_sw_if_index0;
+
 	      tr->session_id = clib_net_to_host_u16 (pppoe0->session_id);
 
-	      if (c0 != 0)
-
-		{
-
-		  tr->pppox_sw_if_index = c0->pppox_sw_if_index;
-		}
+	      tr->pppox_sw_if_index = c0 ? c0->pppox_sw_if_index : ~0;
 	    }
 
 	  vlib_validate_buffer_enqueue_x1 (vm, node, next_index,
@@ -984,9 +1085,8 @@ format_pppoeclient_session_tx_trace (u8 *s, va_list *args)
 
   pppoeclient_session_tx_trace_t *t = va_arg (*args, pppoeclient_session_tx_trace_t *);
 
-  s = format (s, "PPPoE session sw_if_index %d session_id %d error %d",
-
-	      t->sw_if_index, t->session_id, t->error);
+  s = format (s, "PPPoE session sw_if_index %d session_id %d pppox_sw_if_index %d error %d",
+	      t->sw_if_index, t->session_id, t->pppox_sw_if_index, t->error);
 
   return s;
 }
@@ -1033,7 +1133,8 @@ pppoeclient_session_output (vlib_main_t *vm,
 
 	  vlib_buffer_t *b0, *b1;
 
-	  u32 next0, next1;
+	  u32 next0 = PPPOECLIENT_SESSION_OUTPUT_NEXT_DROP;
+	  u32 next1 = PPPOECLIENT_SESSION_OUTPUT_NEXT_DROP;
 
 	  pppoe_header_t *pppoe0, *pppoe1;
 
@@ -1102,7 +1203,7 @@ pppoeclient_session_output (vlib_main_t *vm,
 	      goto trace0;
 	    }
 
-	  hw0 = vnet_get_sup_hw_interface (vnm, c0->hw_if_index);
+	  hw0 = vnet_get_sup_hw_interface (vnm, c0->sw_if_index);
 
 	  sup_sw0 = vnet_get_sup_sw_interface (vnm, c0->sw_if_index);
 
@@ -1143,8 +1244,7 @@ pppoeclient_session_output (vlib_main_t *vm,
 	      goto trace0;
 	    }
 
-	  try_update_tcp_mss (b0);
-
+	  pppoeclient_try_update_tcp_mss (vm, vnm, b0, pppox_sw_if_index0);
 	  vlib_buffer_advance (b0, -sizeof (pppoe_header_t));
 
 	  pppoe0 = vlib_buffer_get_current (b0);
@@ -1177,8 +1277,11 @@ pppoeclient_session_output (vlib_main_t *vm,
 	  if (PREDICT_FALSE (b0->flags & VLIB_BUFFER_IS_TRACED))
 
 	    {
-
-	      // todo: add trace.
+	      pppoeclient_session_tx_trace_t *tr = vlib_add_trace (vm, node, b0, sizeof (*tr));
+	      tr->sw_if_index = c0 ? c0->sw_if_index : ~0;
+	      tr->session_id = c0 ? c0->session_id : 0;
+	      tr->pppox_sw_if_index = pppox_sw_if_index0;
+	      tr->error = error0;
 	    }
 
 	  c1 = pppoeclient_get_client_by_pppox_sw_if_index (pem, pppox_sw_if_index1, 0);
@@ -1189,7 +1292,7 @@ pppoeclient_session_output (vlib_main_t *vm,
 	      goto trace1;
 	    }
 
-	  hw1 = vnet_get_sup_hw_interface (vnm, c1->hw_if_index);
+	  hw1 = vnet_get_sup_hw_interface (vnm, c1->sw_if_index);
 
 	  sup_sw1 = vnet_get_sup_sw_interface (vnm, c1->sw_if_index);
 
@@ -1230,8 +1333,7 @@ pppoeclient_session_output (vlib_main_t *vm,
 	      goto trace1;
 	    }
 
-	  try_update_tcp_mss (b1);
-
+	  pppoeclient_try_update_tcp_mss (vm, vnm, b1, pppox_sw_if_index1);
 	  vlib_buffer_advance (b1, -sizeof (pppoe_header_t));
 
 	  pppoe1 = vlib_buffer_get_current (b1);
@@ -1264,8 +1366,11 @@ pppoeclient_session_output (vlib_main_t *vm,
 	  if (PREDICT_FALSE (b1->flags & VLIB_BUFFER_IS_TRACED))
 
 	    {
-
-	      // TODO: add trace.
+	      pppoeclient_session_tx_trace_t *tr = vlib_add_trace (vm, node, b1, sizeof (*tr));
+	      tr->sw_if_index = c1 ? c1->sw_if_index : ~0;
+	      tr->session_id = c1 ? c1->session_id : 0;
+	      tr->pppox_sw_if_index = pppox_sw_if_index1;
+	      tr->error = error1;
 	    }
 
 	  vlib_validate_buffer_enqueue_x2 (vm, node, next_index,
@@ -1283,7 +1388,7 @@ pppoeclient_session_output (vlib_main_t *vm,
 
 	  vlib_buffer_t *b0;
 
-	  u32 next0;
+	  u32 next0 = PPPOECLIENT_SESSION_OUTPUT_NEXT_DROP;
 
 	  pppoe_header_t *pppoe0;
 
@@ -1323,7 +1428,7 @@ pppoeclient_session_output (vlib_main_t *vm,
 	      goto trace00;
 	    }
 
-	  hw0 = vnet_get_sup_hw_interface (vnm, c0->hw_if_index);
+	  hw0 = vnet_get_sup_hw_interface (vnm, c0->sw_if_index);
 
 	  sup_sw0 = vnet_get_sup_sw_interface (vnm, c0->sw_if_index);
 
@@ -1364,8 +1469,7 @@ pppoeclient_session_output (vlib_main_t *vm,
 	      goto trace00;
 	    }
 
-	  try_update_tcp_mss (b0);
-
+	  pppoeclient_try_update_tcp_mss (vm, vnm, b0, pppox_sw_if_index0);
 	  vlib_buffer_advance (b0, -sizeof (pppoe_header_t));
 
 	  pppoe0 = vlib_buffer_get_current (b0);
@@ -1398,8 +1502,11 @@ pppoeclient_session_output (vlib_main_t *vm,
 	  if (PREDICT_FALSE (b0->flags & VLIB_BUFFER_IS_TRACED))
 
 	    {
-
-	      // TODO: add trace
+	      pppoeclient_session_tx_trace_t *tr = vlib_add_trace (vm, node, b0, sizeof (*tr));
+	      tr->sw_if_index = c0 ? c0->sw_if_index : ~0;
+	      tr->session_id = c0 ? c0->session_id : 0;
+	      tr->pppox_sw_if_index = pppox_sw_if_index0;
+	      tr->error = error0;
 	    }
 
 	  vlib_validate_buffer_enqueue_x1 (vm, node, next_index,
@@ -1511,6 +1618,93 @@ pppoeclient_dispatch (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t *
       u32 n_left_to_next;
       vlib_get_next_frame (vm, node, next_index, to_next, n_left_to_next);
 
+      while (n_left_from >= 4 && n_left_to_next >= 2)
+	{
+	  u32 bi0, bi1;
+	  vlib_buffer_t *b0, *b1;
+	  u32 next0 = PPPOECLIENT_DISPATCH_NEXT_DROP;
+	  u32 next1 = PPPOECLIENT_DISPATCH_NEXT_DROP;
+	  u16 ethertype0, ethertype1;
+	  u16 l2_hdr_len0 = sizeof (ethernet_header_t);
+	  u16 l2_hdr_len1 = sizeof (ethernet_header_t);
+
+	  /* Prefetch next iteration. */
+	  {
+	    vlib_buffer_t *p2, *p3;
+	    p2 = vlib_get_buffer (vm, from[2]);
+	    p3 = vlib_get_buffer (vm, from[3]);
+	    vlib_prefetch_buffer_header (p2, LOAD);
+	    vlib_prefetch_buffer_header (p3, LOAD);
+	    CLIB_PREFETCH (p2->data, CLIB_CACHE_LINE_BYTES, LOAD);
+	    CLIB_PREFETCH (p3->data, CLIB_CACHE_LINE_BYTES, LOAD);
+	  }
+
+	  bi0 = from[0];
+	  bi1 = from[1];
+	  to_next[0] = bi0;
+	  to_next[1] = bi1;
+	  from += 2;
+	  to_next += 2;
+	  n_left_from -= 2;
+	  n_left_to_next -= 2;
+
+	  b0 = vlib_get_buffer (vm, bi0);
+	  b1 = vlib_get_buffer (vm, bi1);
+
+	  (void) pppoeclient_get_l2_info (b0, 0, 0, &ethertype0, &l2_hdr_len0);
+	  (void) pppoeclient_get_l2_info (b1, 0, 0, &ethertype1, &l2_hdr_len1);
+
+	  if (ethertype0 == ETHERNET_TYPE_PPPOE_DISCOVERY)
+	    {
+	      vlib_buffer_advance (b0, l2_hdr_len0);
+	      next0 = PPPOECLIENT_DISPATCH_NEXT_DISCOVERY_INPUT;
+	    }
+	  else if (ethertype0 == ETHERNET_TYPE_PPPOE_SESSION)
+	    {
+	      vlib_buffer_advance (b0, l2_hdr_len0);
+	      next0 = PPPOECLIENT_DISPATCH_NEXT_SESSION_INPUT;
+	    }
+	  else
+	    {
+	      vnet_feature_next (&next0, b0);
+	    }
+
+	  if (ethertype1 == ETHERNET_TYPE_PPPOE_DISCOVERY)
+	    {
+	      vlib_buffer_advance (b1, l2_hdr_len1);
+	      next1 = PPPOECLIENT_DISPATCH_NEXT_DISCOVERY_INPUT;
+	    }
+	  else if (ethertype1 == ETHERNET_TYPE_PPPOE_SESSION)
+	    {
+	      vlib_buffer_advance (b1, l2_hdr_len1);
+	      next1 = PPPOECLIENT_DISPATCH_NEXT_SESSION_INPUT;
+	    }
+	  else
+	    {
+	      vnet_feature_next (&next1, b1);
+	    }
+
+	  if (PREDICT_FALSE (b0->flags & VLIB_BUFFER_IS_TRACED))
+	    {
+	      pppoeclient_dispatch_trace_t *tr = vlib_add_trace (vm, node, b0, sizeof (*tr));
+	      tr->next_index = next0;
+	      tr->sw_if_index = vnet_buffer (b0)->sw_if_index[VLIB_RX];
+	      tr->ethertype = ethertype0;
+	    }
+
+	  if (PREDICT_FALSE (b1->flags & VLIB_BUFFER_IS_TRACED))
+	    {
+	      pppoeclient_dispatch_trace_t *tr = vlib_add_trace (vm, node, b1, sizeof (*tr));
+	      tr->next_index = next1;
+	      tr->sw_if_index = vnet_buffer (b1)->sw_if_index[VLIB_RX];
+	      tr->ethertype = ethertype1;
+	    }
+
+	  vlib_validate_buffer_enqueue_x2 (vm, node, next_index, to_next, n_left_to_next, bi0, bi1,
+					   next0, next1);
+	}
+
+      /* x1 tail loop */
       while (n_left_from > 0 && n_left_to_next > 0)
 	{
 	  u32 bi0;
@@ -1532,13 +1726,11 @@ pppoeclient_dispatch (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t *
 
 	  if (ethertype0 == ETHERNET_TYPE_PPPOE_DISCOVERY)
 	    {
-	      /* Advance past the L2 header so pppoeclient sees the PPPoE header. */
 	      vlib_buffer_advance (b0, l2_hdr_len0);
 	      next0 = PPPOECLIENT_DISPATCH_NEXT_DISCOVERY_INPUT;
 	    }
 	  else if (ethertype0 == ETHERNET_TYPE_PPPOE_SESSION)
 	    {
-	      /* Advance past the L2 header so pppoeclient sees the PPPoE header. */
 	      vlib_buffer_advance (b0, l2_hdr_len0);
 	      next0 = PPPOECLIENT_DISPATCH_NEXT_SESSION_INPUT;
 	    }

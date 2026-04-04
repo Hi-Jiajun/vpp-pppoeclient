@@ -1,3 +1,4 @@
+/* SPDX-FileCopyrightText: Copyright (c) 2026 Hi-Jiajun. */
 /* SPDX-License-Identifier: Apache-2.0 */
 /* PPP Stubs - Minimal stub implementations for pppox plugin */
 #include <vppinfra/vec.h>

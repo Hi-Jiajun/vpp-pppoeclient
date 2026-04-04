@@ -43,12 +43,6 @@
 
 #define RCSID "$Id: fsm.c,v 1.23 2004/11/13 02:28:15 paulus Exp $"
 
-/*
- * TODO:
- * Randomize fsm id on link/init.
- * Deal with variable outgoing MTU.
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -76,7 +70,8 @@ int peer_mru[NUM_PPP];
  *
  * Initialize fsm state.
  */
-void fsm_init (f) fsm *f;
+void
+fsm_init (fsm *f)
 {
   f->state = INITIAL;
   f->flags = 0;
@@ -86,7 +81,7 @@ void fsm_init (f) fsm *f;
   f->maxtermtransmits = DEFMAXTERMREQS;
   f->maxnakloops = DEFMAXNAKLOOPS;
   f->term_reason_len = 0;
-  // ZDY: clear state that might be reused.
+  /* Clear per-session state that can be reused after a restart. */
   f->reqid = 0;
   f->seen_ack = 0;
   f->nakloops = 0;
@@ -96,7 +91,8 @@ void fsm_init (f) fsm *f;
 /*
  * fsm_lowerup - The lower layer is up.
  */
-void fsm_lowerup (f) fsm *f;
+void
+fsm_lowerup (fsm *f)
 {
   switch (f->state)
     {
@@ -132,7 +128,8 @@ void fsm_lowerup (f) fsm *f;
  *
  * Cancel all timeouts and inform upper layers.
  */
-void fsm_lowerdown (f) fsm *f;
+void
+fsm_lowerdown (fsm *f)
 {
   switch (f->state)
     {
@@ -173,7 +170,8 @@ void fsm_lowerdown (f) fsm *f;
 /*
  * fsm_open - Link is allowed to come up.
  */
-void fsm_open (f) fsm *f;
+void
+fsm_open (fsm *f)
 {
   switch (f->state)
     {
@@ -214,8 +212,8 @@ void fsm_open (f) fsm *f;
  * Cancel any timeout running, notify upper layers we're done, and
  * send a terminate-request message as configured.
  */
-static void terminate_layer (f, nextstate) fsm *f;
-int nextstate;
+static void
+terminate_layer (fsm *f, int nextstate)
 {
   if (f->state != OPENED)
     UNTIMEOUT (fsm_timeout, f); /* Cancel timeout */
@@ -251,8 +249,8 @@ int nextstate;
  * Cancel timeouts and either initiate close or possibly go directly to
  * the CLOSED state.
  */
-void fsm_close (f, reason) fsm *f;
-char *reason;
+void
+fsm_close (fsm *f, char *reason)
 {
   f->term_reason = reason;
   f->term_reason_len = (reason == NULL ? 0 : strlen (reason));
@@ -280,7 +278,8 @@ char *reason;
 /*
  * fsm_timeout - Timeout expired.
  */
-static void fsm_timeout (arg) void *arg;
+static void
+fsm_timeout (void *arg)
 {
   fsm *f = (fsm *) arg;
 
@@ -335,9 +334,8 @@ static void fsm_timeout (arg) void *arg;
 /*
  * fsm_input - Input packet.
  */
-void fsm_input (f, inpacket, l) fsm *f;
-u_char *inpacket;
-int l;
+void
+fsm_input (fsm *f, u_char *inpacket, int l)
 {
   u_char *inp;
   u_char code, id;
@@ -414,10 +412,8 @@ int l;
 /*
  * fsm_rconfreq - Receive Configure-Request.
  */
-static void fsm_rconfreq (f, id, inp, len) fsm *f;
-u_char id;
-u_char *inp;
-int len;
+static void
+fsm_rconfreq (fsm *f, int id, u_char *inp, int len)
 {
   int code, reject_if_disagree;
 
@@ -489,10 +485,8 @@ int len;
 /*
  * fsm_rconfack - Receive Configure-Ack.
  */
-static void fsm_rconfack (f, id, inp, len) fsm *f;
-int id;
-u_char *inp;
-int len;
+static void
+fsm_rconfack (fsm *f, int id, u_char *inp, int len)
 {
   if (id != f->reqid || f->seen_ack) /* Expected id? */
     return;			     /* Nope, toss... */
@@ -545,10 +539,8 @@ int len;
 /*
  * fsm_rconfnakrej - Receive Configure-Nak or Configure-Reject.
  */
-static void fsm_rconfnakrej (f, code, id, inp, len) fsm *f;
-int code, id;
-u_char *inp;
-int len;
+static void
+fsm_rconfnakrej (fsm *f, int code, int id, u_char *inp, int len)
 {
   int ret;
   int treat_as_reject;
@@ -616,10 +608,8 @@ int len;
 /*
  * fsm_rtermreq - Receive Terminate-Req.
  */
-static void fsm_rtermreq (f, id, p, len) fsm *f;
-int id;
-u_char *p;
-int len;
+static void
+fsm_rtermreq (fsm *f, int id, u_char *p, int len)
 {
   switch (f->state)
     {
@@ -649,7 +639,8 @@ int len;
 /*
  * fsm_rtermack - Receive Terminate-Ack.
  */
-static void fsm_rtermack (f) fsm *f;
+static void
+fsm_rtermack (fsm *f)
 {
   switch (f->state)
     {
@@ -682,9 +673,8 @@ static void fsm_rtermack (f) fsm *f;
 /*
  * fsm_rcoderej - Receive an Code-Reject.
  */
-static void fsm_rcoderej (f, inp, len) fsm *f;
-u_char *inp;
-int len;
+static void
+fsm_rcoderej (fsm *f, u_char *inp, int len)
 {
   u_char code, id;
 
@@ -706,7 +696,8 @@ int len;
  *
  * Treat this as a catastrophic error (RXJ-).
  */
-void fsm_protreject (f) fsm *f;
+void
+fsm_protreject (fsm *f)
 {
   switch (f->state)
     {
@@ -744,8 +735,8 @@ void fsm_protreject (f) fsm *f;
 /*
  * fsm_sconfreq - Send a Configure-Request.
  */
-static void fsm_sconfreq (f, retransmit) fsm *f;
-int retransmit;
+static void
+fsm_sconfreq (fsm *f, int retransmit)
 {
   u_char *outp;
   int cilen;
@@ -796,10 +787,8 @@ int retransmit;
  *
  * Used for all packets sent to our peer by this module.
  */
-void fsm_sdata (f, code, id, data, datalen) fsm *f;
-u_char code, id;
-u_char *data;
-int datalen;
+void
+fsm_sdata (fsm *f, int code, int id, u_char *data, int datalen)
 {
   u_char *outp;
   int outlen;
@@ -808,7 +797,7 @@ int datalen;
   outp = outpacket_buf;
   if (datalen > peer_mru[f->unit] - HEADERLEN)
     datalen = peer_mru[f->unit] - HEADERLEN;
-  if (datalen && data != outp + PPP_HDRLEN + HEADERLEN)
+  if (datalen && data && data != outp + PPP_HDRLEN + HEADERLEN)
     BCOPY (data, outp + PPP_HDRLEN + HEADERLEN, datalen);
   outlen = datalen + HEADERLEN;
   MAKEHEADER (outp, f->protocol);

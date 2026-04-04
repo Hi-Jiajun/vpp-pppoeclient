@@ -79,10 +79,7 @@ struct buffer_info
  * always leaves destination null-terminated (for len > 0).
  */
 size_t
-strlcpy (dest, src, len)
-char *dest;
-const char *src;
-size_t len;
+strlcpy (char *dest, const char *src, size_t len)
 {
   size_t ret = strlen (src);
 
@@ -104,10 +101,7 @@ size_t len;
  * always leaves destination null-terminated (for len > 0).
  */
 size_t
-strlcat (dest, src, len)
-char *dest;
-const char *src;
-size_t len;
+strlcat (char *dest, const char *src, size_t len)
 {
   size_t dlen = strlen (dest);
 
@@ -149,11 +143,7 @@ int slprintf __V ((char *buf, int buflen, char *fmt, ...))
 #define OUTCHAR(c) (buflen > 0 ? (--buflen, *buf++ = (c)) : 0)
 
 int
-vslprintf (buf, buflen, fmt, args)
-char *buf;
-int buflen;
-char *fmt;
-va_list args;
+vslprintf (char *buf, int buflen, char *fmt, va_list args)
 {
   int c, i, n;
   int width, prec, fillch;
@@ -485,10 +475,8 @@ static void vslp_printer __V ((void *arg, char *fmt, ...))
  * log_packet - format a packet and log it.
  */
 
-void log_packet (p, len, prefix, level) u_char *p;
-int len;
-char *prefix;
-int level;
+void
+log_packet (u_char *p, int len, char *prefix, int level)
 {
   init_pr_log (prefix, level);
   format_packet (p, len, pr_log, &level);
@@ -500,10 +488,8 @@ int level;
  * format_packet - make a readable representation of a packet,
  * calling `printer(arg, format, ...)' to output it.
  */
-static void format_packet (p, len, printer, arg) u_char *p;
-int len;
-printer_func printer;
-void *arg;
+static void
+format_packet (u_char *p, int len, printer_func printer, void *arg)
 {
   int i, n;
   u_short proto;
@@ -558,8 +544,8 @@ static char line[256]; /* line to be logged accumulated here */
 static char *linep;    /* current pointer within line */
 static int llevel;     /* level for logging */
 
-void init_pr_log (prefix, level) const char *prefix;
-int level;
+void
+init_pr_log (const char *prefix, int level)
 {
   linep = line;
   if (prefix != NULL)
@@ -571,7 +557,7 @@ int level;
 }
 
 void
-end_pr_log ()
+end_pr_log (void)
 {
   if (linep != line)
     {
@@ -646,10 +632,8 @@ void pr_log __V ((void *arg, char *fmt, ...))
  * print_string - print a readable representation of a string using
  * printer.
  */
-void print_string (p, len, printer, arg) char *p;
-int len;
-printer_func printer;
-void *arg;
+void
+print_string (char *p, int len, printer_func printer, void *arg)
 {
   int c;
 
@@ -687,9 +671,8 @@ void *arg;
 /*
  * logit - does the hard work for fatal et al.
  */
-static void logit (level, fmt, args) int level;
-char *fmt;
-va_list args;
+static void
+logit (int level, char *fmt, va_list args)
 {
   char buf[1024];
 
@@ -697,13 +680,13 @@ va_list args;
   log_write (level, buf);
 }
 
-static void log_write (level, buf) int level;
-char *buf;
+static void
+log_write (int level, char *buf)
 {
-  // syslog(level, "%s", buf);
-  //  ZDY: simplew write to console.
-  //  TODO: later we may add a cicylic log buffer for each pppox interface
-  //  and add a cli to dump them.
+  /*
+   * The VPP integration currently routes these messages to stdout/stderr
+   * rather than syslog.
+   */
   printf ("%s\n", buf);
 }
 
@@ -728,10 +711,10 @@ void fatal __V ((char *fmt, ...))
   die (1); /* as promised */
 }
 
-// ZDY: glibc 2.23 provide an error function, rename this function
-// and reference to xerror in case it does not crash.
-// ZDY: this log might affect performance, need consider add a
-// log buffer and sync log to control plane for debug/monitor.
+/*
+ * Use xerror/xwarn names to avoid colliding with glibc's error() symbol on
+ * older distributions.
+ */
 /*
  * error - log an error message.
  */
@@ -752,7 +735,6 @@ void xerror __V ((char *fmt, ...))
   ++error_count;
 }
 
-// Change to xwarn based on the same reason above.
 /*
  * xwarn - log a warning message.
  */

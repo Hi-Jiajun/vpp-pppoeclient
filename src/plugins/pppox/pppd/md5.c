@@ -1,4 +1,3 @@
-
 /* SPDX-License-Identifier: RSA-MD */
 
 /*
@@ -103,7 +102,8 @@ static unsigned char PADDING[64] = {
 /* The routine MD5_Init initializes the message-digest context
    mdContext. All fields are set to zero.
  */
-void MD5_Init (mdContext) MD5_CTX *mdContext;
+void
+MD5_Init (MD5_CTX *mdContext)
 {
   mdContext->i[0] = mdContext->i[1] = (UINT4) 0;
 
@@ -119,9 +119,8 @@ void MD5_Init (mdContext) MD5_CTX *mdContext;
    account for the presence of each of the characters inBuf[0..inLen-1]
    in the message whose digest is being computed.
  */
-void MD5_Update (mdContext, inBuf, inLen) MD5_CTX *mdContext;
-unsigned char *inBuf;
-unsigned int inLen;
+void
+MD5_Update (MD5_CTX *mdContext, unsigned char *inBuf, unsigned int inLen)
 {
   UINT4 in[16];
   int mdi;
@@ -157,8 +156,8 @@ unsigned int inLen;
 /* The routine MD5Final terminates the message-digest computation and
    ends with the desired message digest in mdContext->digest[0...15].
  */
-void MD5_Final (hash, mdContext) unsigned char hash[];
-MD5_CTX *mdContext;
+void
+MD5_Final (unsigned char hash[], MD5_CTX *mdContext)
 {
   UINT4 in[16];
   int mdi;
@@ -195,8 +194,8 @@ MD5_CTX *mdContext;
 
 /* Basic MD5 step. Transforms buf based on in.
  */
-static void Transform (buf, in) UINT4 *buf;
-UINT4 *in;
+static void
+Transform (UINT4 *buf, UINT4 *in)
 {
   UINT4 a = buf[0], b = buf[1], c = buf[2], d = buf[3];
 

@@ -141,8 +141,10 @@ typedef struct fsm_callbacks
  * Timeouts.
  */
 #define DEFTIMEOUT 3 /* Timeout time in seconds */
-// ZDY: we should not wait for termreq because we might start a new pppoe session
-// immediately, let AC handle the timeout of the old session.
+/*
+ * Do not retransmit Terminate-Request. A new PPPoE session may start
+ * immediately and the access concentrator is expected to age out the old one.
+ */
 #define DEFMAXTERMREQS 0  /* Maximum Terminate-Request transmissions */
 #define DEFMAXCONFREQS 10 /* Maximum Configure-Request transmissions */
 #define DEFMAXNAKLOOPS 5  /* Maximum number of nak loops */

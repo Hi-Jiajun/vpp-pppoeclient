@@ -66,12 +66,12 @@ typedef struct
   u32 sw_if_index;
   u32 hw_if_index;
 
-  /* record pppoe client index */
-  // TODO: if we wan to support real pppoX, we should make
-  // a type here to detect underly encapsulation.
+  /* Back-pointer to the owning PPPoE client for the current PPPoX session. */
   u32 pppoe_client_index;
   /* record pppoe session status */
   u8 pppoe_session_allocated;
+  /* explicit delete in progress: do teardown without reconnect */
+  u8 delete_pending;
 
   /* record allocated address. */
   u32 our_addr;
@@ -85,6 +85,23 @@ typedef struct
   u8 add_default_route6; /* add IPv6 default route via peer */
   u8 use_peer_dns;
 } pppox_virtual_interface_t;
+
+typedef struct
+{
+  u8 present;
+  u8 phase;
+  u8 lcp_state;
+  u8 ipcp_state;
+  u8 ipv6cp_state;
+  int lcp_timeout;
+  int ipcp_timeout;
+  int ipv6cp_timeout;
+  u8 req_dns1;
+  u8 req_dns2;
+  u8 default_route4;
+  u32 negotiated_dns1;
+  u32 negotiated_dns2;
+} pppox_ppp_debug_runtime_t;
 
 typedef struct
 {
@@ -123,6 +140,7 @@ int pppox_set_add_default_route (u32, u8);  /* sets both IPv4 and IPv6 */
 int pppox_set_add_default_route4 (u32, u8); /* IPv4 only */
 int pppox_set_add_default_route6 (u32, u8); /* IPv6 only */
 int pppox_set_use_peer_dns (u32, u8);
+u8 pppox_get_ppp_debug_runtime (u32, pppox_ppp_debug_runtime_t *);
 void pppox_set_interface_mtu (int, int);
 
 #endif /* _PPPOX_H */

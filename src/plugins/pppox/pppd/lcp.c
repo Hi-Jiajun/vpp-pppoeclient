@@ -43,10 +43,6 @@
 
 #define RCSID "$Id: lcp.c,v 1.76 2006/05/22 00:04:07 paulus Exp $"
 
-/*
- * TODO:
- */
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -72,12 +68,10 @@ static void lcp_delayed_up __P ((void *) );
 /*
  * LCP-related command-line options.
  */
-// ZDY: enable keepalive to detect AC closed our session but we
-// do not got the term req because the issues like wire broken.
-// values choosen from:
-// https://supportforums.cisco.com/t5/wan-routing-and-switching/ppp-keepalive-lcp-echo-request-data-length/td-p/2520383
-// There parameter shared by all ppp instances, if later we add the capability to
-// customize value of each instances, we should make them per instances.
+/*
+ * LCP echo handling is shared by all PPPoX instances. These defaults favor
+ * detecting silently broken sessions in the VPP deployment.
+ */
 int lcp_echo_interval = 10; /* Interval between LCP echo-requests */
 int lcp_echo_fails = 5;	    /* Tolerance to unanswered echo-requests */
 bool lax_recv = 0;	    /* accept control chars in asyncmap */
@@ -90,7 +84,7 @@ lcp_options lcp_gotoptions[NUM_PPP];   /* Options that peer ack'd */
 lcp_options lcp_allowoptions[NUM_PPP]; /* Options we allow peer to request */
 lcp_options lcp_hisoptions[NUM_PPP];   /* Options that we ack'd */
 
-// ZDY: turn to array to support multiple instances.
+/* Per-unit echo state for concurrent PPPoX sessions. */
 static int lcp_echos_pending[NUM_PPP] = { 0 };	    /* Number of outstanding echo msgs */
 static int lcp_echo_number[NUM_PPP] = { 0 };	    /* ID number of next echo frame */
 static int lcp_echo_timer_running[NUM_PPP] = { 0 }; /* set if a timer is running */
@@ -178,7 +172,8 @@ int lcp_loopbackfail = DEFLOOPBACKFAIL;
 /*
  * lcp_init - Initialize LCP.
  */
-static void lcp_init (unit) int unit;
+static void
+lcp_init (int unit)
 {
   fsm *f = &lcp_fsm[unit];
   lcp_options *wo = &lcp_wantoptions[unit];
@@ -193,8 +188,7 @@ static void lcp_init (unit) int unit;
   BZERO (wo, sizeof (*wo));
   wo->neg_mru = 1;
   wo->mru = DEFMRU;
-  // ZDY: disable asyncmap/pcomp/acomp when init.
-  // and add upap.
+  /* The VPP integration negotiates a reduced option set. */
   wo->neg_asyncmap = 0;
   wo->neg_magicnumber = 1;
   wo->neg_upap = 1;
@@ -202,7 +196,7 @@ static void lcp_init (unit) int unit;
   wo->neg_accompression = 0;
 
   BZERO (ao, sizeof (*ao));
-  // ZDY: only mru/pap/chap is allowed currently.
+  /* Only the options implemented by the VPP integration are accepted. */
   ao->neg_mru = 1;
   ao->mru = MAXMRU;
   ao->neg_asyncmap = 0;
@@ -215,7 +209,7 @@ static void lcp_init (unit) int unit;
   ao->neg_accompression = 0;
   ao->neg_endpoint = 0;
 
-  // ZDY: clear state might be used.
+  /* Clear per-unit negotiation state that may be reused after restart. */
   memset (&lcp_gotoptions[unit], 0, sizeof (lcp_gotoptions[unit]));
   memset (&lcp_hisoptions[unit], 0, sizeof (lcp_hisoptions[unit]));
 }
@@ -223,7 +217,8 @@ static void lcp_init (unit) int unit;
 /*
  * lcp_open - LCP is allowed to come up.
  */
-void lcp_open (unit) int unit;
+void
+lcp_open (int unit)
 {
   fsm *f = &lcp_fsm[unit];
   lcp_options *wo = &lcp_wantoptions[unit];
@@ -239,8 +234,8 @@ void lcp_open (unit) int unit;
 /*
  * lcp_close - Take LCP down.
  */
-void lcp_close (unit, reason) int unit;
-char *reason;
+void
+lcp_close (int unit, char *reason)
 {
   fsm *f = &lcp_fsm[unit];
   int oldstate;
@@ -273,7 +268,8 @@ char *reason;
 /*
  * lcp_lowerup - The lower layer is up.
  */
-void lcp_lowerup (unit) int unit;
+void
+lcp_lowerup (int unit)
 {
   lcp_options *wo = &lcp_wantoptions[unit];
   fsm *f = &lcp_fsm[unit];
@@ -301,7 +297,8 @@ void lcp_lowerup (unit) int unit;
 /*
  * lcp_lowerdown - The lower layer is down.
  */
-void lcp_lowerdown (unit) int unit;
+void
+lcp_lowerdown (int unit)
 {
   fsm *f = &lcp_fsm[unit];
 
@@ -317,7 +314,8 @@ void lcp_lowerdown (unit) int unit;
 /*
  * lcp_delayed_up - Bring the lower layer up now.
  */
-static void lcp_delayed_up (arg) void *arg;
+static void
+lcp_delayed_up (void *arg)
 {
   fsm *f = arg;
 
@@ -331,9 +329,8 @@ static void lcp_delayed_up (arg) void *arg;
 /*
  * lcp_input - Input LCP packet.
  */
-static void lcp_input (unit, p, len) int unit;
-u_char *p;
-int len;
+static void
+lcp_input (int unit, u_char *p, int len)
 {
   fsm *f = &lcp_fsm[unit];
 
@@ -350,11 +347,7 @@ int len;
  * lcp_extcode - Handle a LCP-specific code.
  */
 static int
-lcp_extcode (f, code, id, inp, len)
-fsm *f;
-int code, id;
-u_char *inp;
-int len;
+lcp_extcode (fsm *f, int code, int id, u_char *inp, int len)
 {
   u_char *magp;
 
@@ -392,9 +385,8 @@ int len;
  *
  * Figure out which protocol is rejected and inform it.
  */
-static void lcp_rprotrej (f, inp, len) fsm *f;
-u_char *inp;
-int len;
+static void
+lcp_rprotrej (fsm *f, u_char *inp, int len)
 {
   int i;
   struct protent *protp;
@@ -445,7 +437,8 @@ int len;
  * lcp_protrej - A Protocol-Reject was received.
  */
 /*ARGSUSED*/
-static void lcp_protrej (unit) int unit;
+static void
+lcp_protrej (int unit)
 {
   /*
    * Can't reject LCP!
@@ -457,9 +450,8 @@ static void lcp_protrej (unit) int unit;
 /*
  * lcp_sprotrej - Send a Protocol-Reject for some protocol.
  */
-void lcp_sprotrej (unit, p, len) int unit;
-u_char *p;
-int len;
+void
+lcp_sprotrej (int unit, u_char *p, int len)
 {
   /*
    * Send back the protocol and the information field of the
@@ -474,7 +466,8 @@ int len;
 /*
  * lcp_resetci - Reset our CI.
  */
-static void lcp_resetci (f) fsm *f;
+static void
+lcp_resetci (fsm *f)
 {
   lcp_options *wo = &lcp_wantoptions[f->unit];
   lcp_options *go = &lcp_gotoptions[f->unit];
@@ -499,8 +492,7 @@ static void lcp_resetci (f) fsm *f;
  * lcp_cilen - Return length of our CI.
  */
 static int
-lcp_cilen (f)
-fsm *f;
+lcp_cilen (fsm *f)
 {
   lcp_options *go = &lcp_gotoptions[f->unit];
 
@@ -528,9 +520,8 @@ fsm *f;
 /*
  * lcp_addci - Add our desired CIs to a packet.
  */
-static void lcp_addci (f, ucp, lenp) fsm *f;
-u_char *ucp;
-int *lenp;
+static void
+lcp_addci (fsm *f, u_char *ucp, int *lenp)
 {
   lcp_options *go = &lcp_gotoptions[f->unit];
   u_char *start_ucp = ucp;
@@ -620,10 +611,7 @@ int *lenp;
  *	1 - Ack was good.
  */
 static int
-lcp_ackci (f, p, len)
-fsm *f;
-u_char *p;
-int len;
+lcp_ackci (fsm *f, u_char *p, int len)
 {
   lcp_options *go = &lcp_gotoptions[f->unit];
   u_char cilen, citype, cichar;
@@ -773,11 +761,7 @@ bad:
  *	1 - Nak was good.
  */
 static int
-lcp_nakci (f, p, len, treat_as_reject)
-fsm *f;
-u_char *p;
-int len;
-int treat_as_reject;
+lcp_nakci (fsm *f, u_char *p, int len, int treat_as_reject)
 {
   lcp_options *go = &lcp_gotoptions[f->unit];
   lcp_options *wo = &lcp_wantoptions[f->unit];
@@ -1153,10 +1137,7 @@ bad:
  *	1 - Reject was good.
  */
 static int
-lcp_rejci (f, p, len)
-fsm *f;
-u_char *p;
-int len;
+lcp_rejci (fsm *f, u_char *p, int len)
 {
   lcp_options *go = &lcp_gotoptions[f->unit];
   u_char cichar;
@@ -1299,11 +1280,7 @@ bad:
  * CONFNAK; returns CONFREJ if it can't return CONFACK.
  */
 static int
-lcp_reqci (f, inp, lenp, reject_if_disagree)
-fsm *f;
-u_char *inp; /* Requested CIs */
-int *lenp;   /* Length of requested CIs */
-int reject_if_disagree;
+lcp_reqci (fsm *f, u_char *inp, int *lenp, int reject_if_disagree)
 {
   lcp_options *go = &lcp_gotoptions[f->unit];
   lcp_options *ho = &lcp_hisoptions[f->unit];
@@ -1721,7 +1698,8 @@ int reject_if_disagree;
 /*
  * lcp_up - LCP has come UP.
  */
-static void lcp_up (f) fsm *f;
+static void
+lcp_up (fsm *f)
 {
   lcp_options *wo = &lcp_wantoptions[f->unit];
   lcp_options *ho = &lcp_hisoptions[f->unit];
@@ -1770,7 +1748,8 @@ static void lcp_up (f) fsm *f;
  *
  * Alert other protocols.
  */
-static void lcp_down (f) fsm *f;
+static void
+lcp_down (fsm *f)
 {
   lcp_options *go = &lcp_gotoptions[f->unit];
 
@@ -1787,7 +1766,8 @@ static void lcp_down (f) fsm *f;
 /*
  * lcp_starting - LCP needs the lower layer up.
  */
-static void lcp_starting (f) fsm *f;
+static void
+lcp_starting (fsm *f)
 {
   link_required (f->unit);
 }
@@ -1795,7 +1775,8 @@ static void lcp_starting (f) fsm *f;
 /*
  * lcp_finished - LCP has finished with the lower layer.
  */
-static void lcp_finished (f) fsm *f;
+static void
+lcp_finished (fsm *f)
 {
   link_terminated (f->unit);
 }
@@ -1808,11 +1789,7 @@ static char *lcp_codenames[] = { "ConfReq", "ConfAck", "ConfNak", "ConfRej", "Te
 				 "DiscReq", "Ident",   "TimeRem" };
 
 static int
-lcp_printpkt (p, plen, printer, arg)
-u_char *p;
-int plen;
-void (*printer) __P ((void *, char *, ...));
-void *arg;
+lcp_printpkt (u_char *p, int plen, void (*printer) __P ((void *, char *, ...)), void *arg)
 {
   int code, id, len, olen, i;
   u_char *pstart, *optend;
@@ -2079,7 +2056,8 @@ void *arg;
  * Time to shut down the link because there is nothing out there.
  */
 
-static void LcpLinkFailure (f) fsm *f;
+static void
+LcpLinkFailure (fsm *f)
 {
   if (f->state == OPENED)
     {
@@ -2094,7 +2072,8 @@ static void LcpLinkFailure (f) fsm *f;
  * Timer expired for the LCP echo requests from this process.
  */
 
-static void LcpEchoCheck (f) fsm *f;
+static void
+LcpEchoCheck (fsm *f)
 {
   LcpSendEchoRequest (f);
   if (f->state != OPENED)
@@ -2113,7 +2092,8 @@ static void LcpEchoCheck (f) fsm *f;
  * LcpEchoTimeout - Timer expired on the LCP echo
  */
 
-static void LcpEchoTimeout (arg) void *arg;
+static void
+LcpEchoTimeout (void *arg)
 {
   if (lcp_echo_timer_running[((fsm *) arg)->unit] != 0)
     {
@@ -2126,10 +2106,8 @@ static void LcpEchoTimeout (arg) void *arg;
  * LcpEchoReply - LCP has received a reply to the echo
  */
 
-static void lcp_received_echo_reply (f, id, inp, len) fsm *f;
-int id;
-u_char *inp;
-int len;
+static void
+lcp_received_echo_reply (fsm *f, int id, u_char *inp, int len)
 {
   u_int32_t magic;
 
@@ -2154,7 +2132,8 @@ int len;
  * LcpSendEchoRequest - Send an echo request frame to the peer
  */
 
-static void LcpSendEchoRequest (f) fsm *f;
+static void
+LcpSendEchoRequest (fsm *f)
 {
   u_int32_t lcp_magic;
   u_char pkt[4], *pktp;
@@ -2188,7 +2167,8 @@ static void LcpSendEchoRequest (f) fsm *f;
  * lcp_echo_lowerup - Start the timer for the LCP frame
  */
 
-static void lcp_echo_lowerup (unit) int unit;
+static void
+lcp_echo_lowerup (int unit)
 {
   fsm *f = &lcp_fsm[unit];
 
@@ -2206,7 +2186,8 @@ static void lcp_echo_lowerup (unit) int unit;
  * lcp_echo_lowerdown - Stop the timer for the LCP frame
  */
 
-static void lcp_echo_lowerdown (unit) int unit;
+static void
+lcp_echo_lowerdown (int unit)
 {
   fsm *f = &lcp_fsm[unit];
 

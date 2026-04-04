@@ -31,7 +31,7 @@
 
 #define RCSID "$Id: chap-new.c,v 1.9 2007/06/19 02:08:35 carlsonj Exp $"
 
-// ZDY: modified to support multiple PPP instances.
+/* Adapted to keep per-unit state for multiple PPPoX sessions. */
 
 #include <stdlib.h>
 #include <string.h>
@@ -70,7 +70,7 @@ static option_t chap_option_list[] = {
   { NULL }
 };
 
-// ZDY: make global state for support multiple ppp connection.
+/* Per-unit client/server state for concurrent PPPoX sessions. */
 struct chap_client_state chap_client[NUM_PPP];
 struct chap_server_state chap_server[NUM_PPP];
 
@@ -112,9 +112,10 @@ static struct chap_digest_type *chap_digests;
 static void
 chap_init (int unit)
 {
-  // ZDY: username/password will be set/free by pppox plugin, should not
-  //  clean when init because lcp maybe restart.
-  //  wo we reset each non crendential bits of chap_client.
+  /*
+   * Credentials are owned by the PPPoX runtime. LCP may restart without
+   * reloading them, so only reset the non-credential portions here.
+   */
 #if 0
         memset(&chap_client[unit], 0, sizeof(chap_client));
 #endif
@@ -220,8 +221,6 @@ chap_auth_with_peer (int unit, char *our_name, int digest_code)
     fatal ("CHAP digest 0x%x requested but not available", digest_code);
 
   cs->digest = dp;
-  // cs->name = our_name;
-  //  ZDY: use per unit name
   cs->name = cs->us_user;
   cs->flags |= AUTH_STARTED;
 }

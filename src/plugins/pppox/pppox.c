@@ -19,6 +19,7 @@
 #include <pppox/pppd/fsm.h>
 #include <pppox/pppd/lcp.h>
 #include <pppox/pppd/ipcp.h>
+#include <pppox/pppd/ipv6cp.h>
 #include <pppox/pppd/upap.h>
 #include <pppox/pppd/chap-new.h>
 
@@ -27,11 +28,6 @@
 #define PPP_PROTOCOL_IPX      0x002B
 #define PPP_PROTOCOL_VJ_COMP  0x002D
 #define PPP_PROTOCOL_VJ_UCOMP 0x002F
-
-#define GETSHORT(s, p)                                                                             \
-  (s) = ((u16) ((p)[0] << 8) | (p)[1]);                                                            \
-  (p) += 2
-
 extern void pppd_calltimeout (void);
 
 #include <pppox/pppox.h>
@@ -41,10 +37,35 @@ extern void pppd_calltimeout (void);
 
 __clib_export pppox_main_t pppox_main;
 
+static_always_inline u8
+pppox_unit_is_valid (u32 unit)
+{
+  return unit != ~0 && unit < NUM_PPP;
+}
+
+static char *
+pppox_dup_c_string_vec (u8 *src)
+{
+  char *dst = 0;
+  u32 len;
+
+  if (src == 0)
+    return 0;
+
+  len = vec_len (src);
+  vec_validate (dst, len);
+  clib_memcpy (dst, src, len);
+  dst[len] = 0;
+  return dst;
+}
+
+void pppox_handle_allocated_address (pppox_virtual_interface_t *t, u8 is_add);
+static void pppox_handle_allocated_ipv6_address (pppox_virtual_interface_t *t, u8 is_add);
+
 static pppox_virtual_interface_t *
 pppox_get_virtual_interface_by_unit (pppox_main_t *pom, u32 unit)
 {
-  if (unit == ~0 || unit >= vec_len (pom->virtual_interfaces) ||
+  if (!pppox_unit_is_valid (unit) || unit >= vec_len (pom->virtual_interfaces) ||
       pool_is_free_index (pom->virtual_interfaces, unit))
     return 0;
 
@@ -86,12 +107,11 @@ consume_pppox_ctrl_pkt (u32 bi, vlib_buffer_t *b)
   u16 protocol = 0;
   struct protent *protp;
   int len = pppox_buffer (b)->len;
-  // Use virtual interface context index as pppd unit number.
-  u32 unit = ~0;
+  u32 unit;
 
   // If instance is deleted, simple return.
   t = pppox_get_virtual_interface_by_sw_if_index (pom, sw_if_index, &unit);
-  if (t == 0)
+  if (t == 0 || !pppox_unit_is_valid (unit))
     return 1;
 
   p = vlib_buffer_get_current (b);
@@ -100,21 +120,14 @@ consume_pppox_ctrl_pkt (u32 bi, vlib_buffer_t *b)
   // Our pppox frame will only have a 16B protocol field.
   len -= 2;
 
-  clib_warning ("PPPOX_CTRL protocol=0x%04x unit=%u phase=%d lcp_state=%d", protocol, unit,
-		phase[unit], lcp_fsm[unit].state);
-
   if (protocol != PPP_LCP && lcp_fsm[unit].state != OPENED)
     {
-      clib_warning ("PPPOX_CTRL reject proto=0x%04x phase=%d lcp=%d", protocol, phase[unit],
-		    lcp_fsm[unit].state);
       return 1;
     }
 
   if (phase[unit] <= PHASE_AUTHENTICATE &&
       !(protocol == PPP_LCP || protocol == PPP_PAP || protocol == PPP_CHAP))
     {
-      clib_warning ("PPPOX_CTRL reject proto=0x%04x phase=%d lcp=%d", protocol, phase[unit],
-		    lcp_fsm[unit].state);
       return 1;
     }
 
@@ -122,23 +135,17 @@ consume_pppox_ctrl_pkt (u32 bi, vlib_buffer_t *b)
     {
       if (protp->protocol == protocol && protp->enabled_flag)
 	{
-	  clib_warning ("PPPOX_CTRL dispatch proto=0x%04x", protocol);
 	  (*protp->input) (unit, p, len);
-	  clib_warning ("PPPOX_CTRL dispatch proto=0x%04x", protocol);
 	  return 0;
 	}
       if (protocol == (protp->protocol & ~0x8000) && protp->enabled_flag &&
 	  protp->datainput != NULL)
 	{
-	  clib_warning ("PPPOX_CTRL dispatch proto=0x%04x", protocol);
 	  (*protp->datainput) (unit, p, len);
-	  clib_warning ("PPPOX_CTRL dispatch proto=0x%04x", protocol);
 	  return 0;
 	}
     }
 
-  clib_warning ("PPPOX_CTRL reject proto=0x%04x phase=%d lcp=%d", protocol, phase[unit],
-		lcp_fsm[unit].state);
   lcp_sprotrej (unit, p - PPP_HDRLEN, len + PPP_HDRLEN);
 
   return 1;
@@ -152,22 +159,78 @@ pppox_restart_dead_client (void)
 {
   pppox_main_t *pom = &pppox_main;
   pppox_virtual_interface_t *vif;
-  static void (*pppoe_client_close_session_func) (u32 client_index) = 0;
+  static void (*pppoe_client_restart_session_func) (u32 client_index) = 0;
 
-  if (pppoe_client_close_session_func == 0)
+  if (pppoe_client_restart_session_func == 0)
     {
-      pppoe_client_close_session_func =
-	vlib_get_plugin_symbol ("pppoeclient_plugin.so", "pppoe_client_close_session");
+      pppoe_client_restart_session_func =
+	vlib_get_plugin_symbol ("pppoeclient_plugin.so", "pppoe_client_restart_session");
     }
-  if (pppoe_client_close_session_func == 0)
+  if (pppoe_client_restart_session_func == 0)
     return;
 
   pool_foreach (vif, pom->virtual_interfaces)
     {
       u32 unit = vif - pom->virtual_interfaces;
 
-      if (phase[unit] == PHASE_DEAD && vif->pppoe_session_allocated)
-	(*pppoe_client_close_session_func) (vif->pppoe_client_index);
+      if (!pppox_unit_is_valid (unit))
+	continue;
+
+      if (phase[unit] == PHASE_DEAD && vif->pppoe_session_allocated && !vif->delete_pending)
+	(*pppoe_client_restart_session_func) (vif->pppoe_client_index);
+    }
+}
+
+static void
+pppox_cleanup_virtual_interface (u32 unit)
+{
+  if (!pppox_unit_is_valid (unit))
+    return;
+
+  // pap client.
+  if (upap[unit].us_user)
+    {
+      vec_free (upap[unit].us_user);
+      upap[unit].us_user = NULL;
+      upap[unit].us_userlen = 0;
+    }
+  if (upap[unit].us_passwd)
+    {
+      vec_free (upap[unit].us_passwd);
+      upap[unit].us_passwd = NULL;
+      upap[unit].us_passwdlen = 0;
+    }
+
+  // chap client.
+  if (chap_client[unit].us_user)
+    {
+      vec_free (chap_client[unit].us_user);
+      chap_client[unit].us_user = NULL;
+      chap_client[unit].us_userlen = 0;
+    }
+  if (chap_client[unit].us_passwd)
+    {
+      vec_free (chap_client[unit].us_passwd);
+      chap_client[unit].us_passwd = NULL;
+      chap_client[unit].us_passwdlen = 0;
+    }
+}
+
+static void
+pppox_clear_allocated_runtime_state (pppox_virtual_interface_t *t)
+{
+  if (t->our_addr || t->his_addr)
+    {
+      pppox_handle_allocated_address (t, 0 /* is_del */);
+      t->our_addr = 0;
+      t->his_addr = 0;
+    }
+
+  if (!ip6_address_is_zero (&t->our_ipv6) || !ip6_address_is_zero (&t->his_ipv6))
+    {
+      pppox_handle_allocated_ipv6_address (t, 0 /* is_del */);
+      ip6_address_set_zero (&t->our_ipv6);
+      ip6_address_set_zero (&t->his_ipv6);
     }
 }
 
@@ -179,11 +242,11 @@ pppox_process (vlib_main_t *vm, vlib_node_runtime_t *rt, vlib_frame_t *f)
 
   while (1)
     {
-      // 1 second loop serve as a tick to drive oss-pppd timers.
-      // XXX: actually we can call timeleft(sys-vpp.c) to
-      // figure out what timeout we need here, but current
-      // pppd timer mininum is 1s, so it's enough to do
-      // this in a tick manner.
+      /*
+       * Drive the imported pppd timers with a simple one-second tick.
+       * The shim currently operates on whole-second granularity, so a
+       * finer wait calculation is not required here.
+       */
       vlib_process_wait_for_event_or_clock (vm, 1); // 1 second.
 
       event_type = vlib_process_get_events (vm, &event_data);
@@ -221,7 +284,9 @@ format_pppox_name (u8 *s, va_list *args)
 static uword
 dummy_interface_tx (vlib_main_t *vm, vlib_node_runtime_t *node, vlib_frame_t *frame)
 {
-  clib_warning ("you shouldn't be here, leaking buffers...");
+  /* PPPOX interfaces never transmit via the generic device path. */
+  u32 *from = vlib_frame_vector_args (frame);
+  vlib_buffer_free (vm, from, frame->n_vectors);
   return frame->n_vectors;
 }
 
@@ -259,7 +324,7 @@ pppox_build_rewrite (vnet_main_t *vnm, u32 sw_if_index, vnet_link_t link_type,
   return rw;
 }
 VNET_DEVICE_CLASS (pppox_device_class, static) = {
-  .name = "PPPPOX",
+  .name = "PPPOX",
   .format_device_name = format_pppox_name,
   .tx_function = dummy_interface_tx,
   .admin_up_down_function = pppox_interface_admin_up_down,
@@ -283,10 +348,18 @@ pppox_allocate_interface (u32 pppoe_client_index)
   vnet_sw_interface_t *si;
   vnet_main_t *vnm = pom->vnet_main;
   pppox_virtual_interface_t *t = 0;
-  int unit;
+  u32 unit;
 
   pool_get_aligned (pom->virtual_interfaces, t, CLIB_CACHE_LINE_BYTES);
-  memset (t, 0, sizeof (*t));
+  clib_memset (t, 0, sizeof (*t));
+
+  unit = t - pom->virtual_interfaces;
+  if (!pppox_unit_is_valid (unit))
+    {
+      pool_put (pom->virtual_interfaces, t);
+      clib_warning ("pppox: unit %u exceeds NUM_PPP (%d) limit", unit, NUM_PPP);
+      return ~0;
+    }
 
   t->pppoe_client_index = pppoe_client_index;
 
@@ -297,8 +370,8 @@ pppox_allocate_interface (u32 pppoe_client_index)
       vec_pop (pom->free_pppox_hw_if_indices);
 
       hi = vnet_get_hw_interface (vnm, hw_if_index);
-      hi->dev_instance = t - pom->virtual_interfaces;
-      hi->hw_instance = hi->dev_instance;
+      hi->dev_instance = unit;
+      hi->hw_instance = unit;
 
       /* clear old stats of freed X before reuse */
       sw_if_index = hi->sw_if_index;
@@ -313,8 +386,7 @@ pppox_allocate_interface (u32 pppoe_client_index)
   else
     {
       hw_if_index =
-	vnet_register_interface (vnm, pppox_device_class.index, t - pom->virtual_interfaces,
-				 pppox_hw_class.index, t - pom->virtual_interfaces);
+	vnet_register_interface (vnm, pppox_device_class.index, unit, pppox_hw_class.index, unit);
       hi = vnet_get_hw_interface (vnm, hw_if_index);
       hi->output_node_index = pppox_output_node.index;
     }
@@ -323,13 +395,12 @@ pppox_allocate_interface (u32 pppoe_client_index)
   t->sw_if_index = sw_if_index = hi->sw_if_index;
 
   vec_validate_init_empty (pom->virtual_interface_index_by_sw_if_index, sw_if_index, ~0);
-  pom->virtual_interface_index_by_sw_if_index[sw_if_index] = t - pom->virtual_interfaces;
+  pom->virtual_interface_index_by_sw_if_index[sw_if_index] = unit;
 
   si = vnet_get_sw_interface (vnm, sw_if_index);
   si->flags &= ~VNET_SW_INTERFACE_FLAG_HIDDEN;
   vnet_sw_interface_set_flags (vnm, sw_if_index, VNET_SW_INTERFACE_FLAG_ADMIN_UP);
 
-  unit = t - pom->virtual_interfaces;
   // pap client.
   upap[unit].us_user = NULL;
   upap[unit].us_userlen = 0;
@@ -441,60 +512,36 @@ pppox_free_interface (u32 hw_if_index)
   vnet_hw_interface_t *hi;
   pppox_virtual_interface_t *t = 0;
   u32 unit = ~0;
+
   hi = vnet_get_hw_interface (vnm, hw_if_index);
 
   t = pppox_get_virtual_interface_by_sw_if_index (pom, hi->sw_if_index, &unit);
   if (t == 0)
     return;
 
-    // clean allocated address.
-    // lcp_close will trigger the ip freeed if we have allocated one.
-#if 0
-  if (t->our_addr) {
-    pppox_handle_allocated_address (t, 0);
-   }
-#endif
+  if (!pppox_unit_is_valid (unit))
+    return;
+
+  t->delete_pending = 1;
 
   // turn down underlying lcp.
   lcp_close (unit, "User request");
 
+  /* Make explicit delete robust even if PPP cleanup callbacks arrive after
+   * the interface mapping has been torn down. */
+  pppox_clear_allocated_runtime_state (t);
+  t->pppoe_session_allocated = 0;
+
   vnet_sw_interface_set_flags (vnm, hi->sw_if_index, 0 /* down */);
-  vnet_sw_interface_t *si = vnet_get_sw_interface (vnm, hi->sw_if_index);
-  si->flags |= VNET_SW_INTERFACE_FLAG_HIDDEN;
+  {
+    vnet_sw_interface_t *si = vnet_get_sw_interface (vnm, hi->sw_if_index);
+    si->flags |= VNET_SW_INTERFACE_FLAG_HIDDEN;
+  }
 
   vec_add1 (pom->free_pppox_hw_if_indices, hw_if_index);
-
   pom->virtual_interface_index_by_sw_if_index[hi->sw_if_index] = ~0;
-
   pool_put (pom->virtual_interfaces, t);
-
-  // pap client.
-  if (upap[unit].us_user)
-    {
-      vec_free (upap[unit].us_user);
-      upap[unit].us_user = NULL;
-      upap[unit].us_userlen = 0;
-    }
-  if (upap[unit].us_passwd)
-    {
-      vec_free (upap[unit].us_passwd);
-      upap[unit].us_passwd = NULL;
-      upap[unit].us_passwdlen = 0;
-    }
-
-  // chap client.
-  if (chap_client[unit].us_user)
-    {
-      vec_free (chap_client[unit].us_user);
-      chap_client[unit].us_user = NULL;
-      chap_client[unit].us_userlen = 0;
-    }
-  if (chap_client[unit].us_passwd)
-    {
-      vec_free (chap_client[unit].us_passwd);
-      chap_client[unit].us_passwd = NULL;
-      chap_client[unit].us_passwdlen = 0;
-    }
+  pppox_cleanup_virtual_interface (unit);
 }
 
 __clib_export void
@@ -505,11 +552,12 @@ pppox_lower_up (u32 sw_if_index)
   u32 unit = ~0;
 
   t = pppox_get_virtual_interface_by_sw_if_index (pom, sw_if_index, &unit);
-  if (t)
+  if (t && pppox_unit_is_valid (unit))
     {
       struct protent *protp;
 
       t->pppoe_session_allocated = 1;
+      t->delete_pending = 0;
 
       new_phase (unit, PHASE_INITIALIZE);
       for (int i = 0; (protp = protocols[i]) != NULL; ++i)
@@ -534,7 +582,7 @@ pppox_lower_down (u32 sw_if_index)
   u32 unit = ~0;
 
   t = pppox_get_virtual_interface_by_sw_if_index (pom, sw_if_index, &unit);
-  if (t)
+  if (t && pppox_unit_is_valid (unit))
     {
       t->pppoe_session_allocated = 0;
       lcp_lowerdown (unit);
@@ -552,46 +600,49 @@ pppox_set_auth (u32 sw_if_index, u8 *username, u8 *password)
     return VNET_API_ERROR_INVALID_INTERFACE;
 
   unit = pom->virtual_interface_index_by_sw_if_index[sw_if_index];
-  if (unit == ~0 || pool_is_free_index (pom->virtual_interfaces, unit))
+  if (!pppox_unit_is_valid ((u32) unit) || pool_is_free_index (pom->virtual_interfaces, unit))
     return VNET_API_ERROR_INVALID_INTERFACE;
 
   t = pool_elt_at_index (pom->virtual_interfaces, unit);
 
-  // pap client.
-  if (upap[unit].us_user)
-    {
-      vec_free (upap[unit].us_user);
-    }
-  upap[unit].us_user = (char *) vec_dup (username);
-  upap[unit].us_userlen = strlen (upap[unit].us_user);
-  if (upap[unit].us_passwd)
-    {
-      vec_free (upap[unit].us_passwd);
-    }
-  upap[unit].us_passwd = (char *) vec_dup (password);
-  upap[unit].us_passwdlen = strlen (upap[unit].us_passwd);
+  /* PAP client credentials */
+  vec_free (upap[unit].us_user);
+  upap[unit].us_user = pppox_dup_c_string_vec (username);
+  upap[unit].us_userlen = upap[unit].us_user ? vec_len (upap[unit].us_user) - 1 : 0;
+  vec_free (upap[unit].us_passwd);
+  upap[unit].us_passwd = pppox_dup_c_string_vec (password);
+  upap[unit].us_passwdlen = upap[unit].us_passwd ? vec_len (upap[unit].us_passwd) - 1 : 0;
 
-  // chap client.
-  if (chap_client[unit].us_user)
-    {
-      vec_free (chap_client[unit].us_user);
-    }
-  chap_client[unit].us_user = (char *) vec_dup (username);
-  chap_client[unit].us_userlen = strlen (chap_client[unit].us_user);
-  if (chap_client[unit].us_passwd)
-    {
-      vec_free (chap_client[unit].us_passwd);
-    }
-  chap_client[unit].us_passwd = (char *) vec_dup (password);
-  chap_client[unit].us_passwdlen = strlen (chap_client[unit].us_passwd);
+  /* CHAP client credentials */
+  vec_free (chap_client[unit].us_user);
+  chap_client[unit].us_user = pppox_dup_c_string_vec (username);
+  chap_client[unit].us_userlen =
+    chap_client[unit].us_user ? vec_len (chap_client[unit].us_user) - 1 : 0;
+  vec_free (chap_client[unit].us_passwd);
+  chap_client[unit].us_passwd = pppox_dup_c_string_vec (password);
+  chap_client[unit].us_passwdlen =
+    chap_client[unit].us_passwd ? vec_len (chap_client[unit].us_passwd) - 1 : 0;
 
-  // after auth configured, notify pppoe to open session to start.
+  /* After auth is configured, notify pppoeclient to open session.
+   * NB: This immediately starts LCP negotiation, so any per-session
+   * options (add-default-route, use-peer-dns, MTU, etc.) MUST be
+   * configured on the pppoeclient side BEFORE calling pppox set auth.
+   * The pppoeclient_set_options API or `set pppoe client` CLI can be
+   * used to pre-configure these options. */
+  static void (*pppoe_client_set_auth_func) (u32 client_index, u8 * username, u8 * password) = 0;
   static void (*pppoe_client_open_session_func) (u32 client_index) = 0;
+  if (pppoe_client_set_auth_func == 0)
+    {
+      pppoe_client_set_auth_func =
+	vlib_get_plugin_symbol ("pppoeclient_plugin.so", "pppoe_client_set_auth");
+    }
   if (pppoe_client_open_session_func == 0)
     {
       pppoe_client_open_session_func =
 	vlib_get_plugin_symbol ("pppoeclient_plugin.so", "pppoe_client_open_session");
     }
+  if (pppoe_client_set_auth_func)
+    (*pppoe_client_set_auth_func) (t->pppoe_client_index, username, password);
   if (pppoe_client_open_session_func)
     (*pppoe_client_open_session_func) (t->pppoe_client_index);
 
@@ -659,6 +710,39 @@ pppox_set_use_peer_dns (u32 sw_if_index, u8 enabled)
   return 0;
 }
 
+u8 __clib_export
+pppox_get_ppp_debug_runtime (u32 sw_if_index, pppox_ppp_debug_runtime_t *rt)
+{
+  pppox_main_t *pom = &pppox_main;
+  pppox_virtual_interface_t *t;
+  u32 unit;
+
+  if (rt == 0)
+    return 0;
+
+  clib_memset (rt, 0, sizeof (*rt));
+
+  t = pppox_get_virtual_interface_by_sw_if_index (pom, sw_if_index, &unit);
+  if (t == 0 || !pppox_unit_is_valid (unit))
+    return 0;
+
+  rt->present = 1;
+  rt->phase = phase[unit];
+  rt->lcp_state = lcp_fsm[unit].state;
+  rt->ipcp_state = ipcp_fsm[unit].state;
+  rt->ipv6cp_state = ipv6cp_fsm[unit].state;
+  rt->lcp_timeout = lcp_fsm[unit].timeouttime;
+  rt->ipcp_timeout = ipcp_fsm[unit].timeouttime;
+  rt->ipv6cp_timeout = ipv6cp_fsm[unit].timeouttime;
+  rt->req_dns1 = ipcp_wantoptions[unit].req_dns1;
+  rt->req_dns2 = ipcp_wantoptions[unit].req_dns2;
+  rt->default_route4 = ipcp_wantoptions[unit].default_route;
+  rt->negotiated_dns1 = ipcp_gotoptions[unit].dnsaddr[0];
+  rt->negotiated_dns2 = ipcp_gotoptions[unit].dnsaddr[1];
+
+  return 1;
+}
+
 clib_error_t *
 pppox_init (vlib_main_t *vm)
 {
@@ -704,7 +788,8 @@ output (int unit, u8 *p, int len)
       return;
     }
   hw = vnet_get_hw_interface (vnm, t->hw_if_index);
-  // TODO: should we should use packet template to prevent allocate buffer????
+  /* Allocate a fresh buffer for control-plane output; packet templating can
+   * be reconsidered later if this path ever needs extra optimization. */
   if (vlib_buffer_alloc (vm, &bi, 1) != 1)
     {
       clib_warning ("buffer allocation failure");
@@ -715,8 +800,7 @@ output (int unit, u8 *p, int len)
   ASSERT (b->current_data == 0);
 
   f = vlib_get_frame_to_node (vm, hw->output_node_index);
-  // XXX: if later we suppport other X of PPPoX, we should check
-  // remove ppp framing address and control field for PPPoE encap.
+  /* PPPoE removes the PPP address/control bytes before Ethernet encapsulation. */
   p += 2;
   len -= 2;
 
@@ -1015,7 +1099,7 @@ sifaddr (int unit, u32 our_adr, u32 his_adr, u32 net_mask)
 {
   ifaddr_arg_t a;
 
-  memset (&a, 0, sizeof (a));
+  clib_memset (&a, 0, sizeof (a));
   a.unit = unit;
   // NB: oss-pppd pass network endian u32 here, and vpp fib
   // parameter require u32 too, so not conversion here.
@@ -1045,7 +1129,7 @@ cifaddr (int unit, u32 our_adr, u32 his_adr)
 {
   ifaddr_arg_t a;
 
-  memset (&a, 0, sizeof (a));
+  clib_memset (&a, 0, sizeof (a));
   a.unit = unit;
   // NB: oss-pppd pass network endian u32 here, and vpp fib
   // parameter require u32 too, so not conversion here.
@@ -1123,24 +1207,38 @@ static void *
 cleanup_callback (void *arg)
 {
   pppox_main_t *pom = &pppox_main;
-  pppox_virtual_interface_t *t;
   cleanup_arg_t *a = arg;
+  static void (*pppoe_client_restart_session_func) (u32 client_index) = 0;
+  u32 client_index = ~0;
+  u8 delete_pending = 0;
 
-  if (a->unit < 0)
+  if (a->unit < 0 || !pppox_unit_is_valid ((u32) a->unit))
     return 0;
 
-  t = pppox_get_virtual_interface_by_unit (pom, a->unit);
-  if (t == 0)
-    return 0;
-  // notify pppoe to close session.
-  static void (*pppoe_client_close_session_func) (u32 client_index) = 0;
-  if (pppoe_client_close_session_func == 0)
+  if (a->unit < vec_len (pom->virtual_interfaces) &&
+      !pool_is_free_index (pom->virtual_interfaces, a->unit))
     {
-      pppoe_client_close_session_func =
-	vlib_get_plugin_symbol ("pppoeclient_plugin.so", "pppoe_client_close_session");
+      pppox_virtual_interface_t *t = pool_elt_at_index (pom->virtual_interfaces, a->unit);
+      client_index = t->pppoe_client_index;
+      delete_pending = t->delete_pending;
+      t->pppoe_session_allocated = 0;
     }
-  if (pppoe_client_close_session_func)
-    (*pppoe_client_close_session_func) (t->pppoe_client_index);
+
+  if (client_index == ~0)
+    return 0;
+
+  /* Admin delete already performs a synchronous stop/teardown from the
+   * pppoeclient side before freeing the PPPoX interface. The cleanup
+   * callback should only trigger automatic reconnect for unexpected PPP
+   * death, and must stay quiet while an explicit delete is in progress. */
+  if (!delete_pending)
+    {
+      if (pppoe_client_restart_session_func == 0)
+	pppoe_client_restart_session_func =
+	  vlib_get_plugin_symbol ("pppoeclient_plugin.so", "pppoe_client_restart_session");
+      if (pppoe_client_restart_session_func)
+	(*pppoe_client_restart_session_func) (client_index);
+    }
 
   return 0;
 }
@@ -1148,9 +1246,9 @@ cleanup_callback (void *arg)
 int
 channel_cleanup (int unit)
 {
-  ifaddr_arg_t a;
+  cleanup_arg_t a;
 
-  memset (&a, 0, sizeof (a));
+  clib_memset (&a, 0, sizeof (a));
   a.unit = unit;
 
   // Might be called in worker thread, so use rpc.

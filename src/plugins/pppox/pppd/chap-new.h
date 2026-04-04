@@ -88,7 +88,7 @@ extern int chap_mdtype_all;
   ((digest) == CHAP_MD5)	  ? (mdtype) &MDTYPE_MD5 :                                         \
 				    0
 
-// ZDY: moved out c/s state.
+/* Exposed so the VPP integration can keep per-unit CHAP state. */
 struct chap_client_state
 {
   int flags;

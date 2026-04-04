@@ -26,8 +26,3 @@ add_vpp_plugin(pppox
   API_FILES
     pppox.api
 )
-
-# Add compile flags for pppox to suppress C23 warnings
-set_target_properties(pppox_plugin PROPERTIES
-    COMPILE_FLAGS "-Wno-error -w -Wno-deprecated-non-prototype -Wno-self-assign"
-)

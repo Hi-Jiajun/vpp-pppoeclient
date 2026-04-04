@@ -121,7 +121,8 @@ static int all_rejected[NUM_PPP]; /* we rejected all peer's options */
 /*
  * ccp_init - initialize CCP.
  */
-static void ccp_init (unit) int unit;
+static void
+ccp_init (int unit)
 {
   fsm *f = &ccp_fsm[unit];
 
@@ -155,7 +156,8 @@ static void ccp_init (unit) int unit;
 /*
  * ccp_open - CCP is allowed to come up.
  */
-static void ccp_open (unit) int unit;
+static void
+ccp_open (int unit)
 {
   fsm *f = &ccp_fsm[unit];
 
@@ -176,8 +178,8 @@ static void ccp_open (unit) int unit;
 /*
  * ccp_close - Terminate CCP.
  */
-static void ccp_close (unit, reason) int unit;
-char *reason;
+static void
+ccp_close (int unit, char *reason)
 {
   ccp_flags_set (unit, 0, 0);
   fsm_close (&ccp_fsm[unit], reason);
@@ -186,7 +188,8 @@ char *reason;
 /*
  * ccp_lowerup - we may now transmit CCP packets.
  */
-static void ccp_lowerup (unit) int unit;
+static void
+ccp_lowerup (int unit)
 {
   fsm_lowerup (&ccp_fsm[unit]);
 }
@@ -194,7 +197,8 @@ static void ccp_lowerup (unit) int unit;
 /*
  * ccp_lowerdown - we may not transmit CCP packets.
  */
-static void ccp_lowerdown (unit) int unit;
+static void
+ccp_lowerdown (int unit)
 {
   fsm_lowerdown (&ccp_fsm[unit]);
 }
@@ -202,9 +206,8 @@ static void ccp_lowerdown (unit) int unit;
 /*
  * ccp_input - process a received CCP packet.
  */
-static void ccp_input (unit, p, len) int unit;
-u_char *p;
-int len;
+static void
+ccp_input (int unit, u_char *p, int len)
 {
   fsm *f = &ccp_fsm[unit];
   int oldstate;
@@ -238,11 +241,7 @@ int len;
  * Handle a CCP-specific code.
  */
 static int
-ccp_extcode (f, code, id, p, len)
-fsm *f;
-int code, id;
-u_char *p;
-int len;
+ccp_extcode (fsm *f, int code, int id, u_char *p, int len)
 {
   switch (code)
     {
@@ -272,7 +271,8 @@ int len;
 /*
  * ccp_protrej - peer doesn't talk CCP.
  */
-static void ccp_protrej (unit) int unit;
+static void
+ccp_protrej (int unit)
 {
   ccp_flags_set (unit, 0, 0);
   fsm_lowerdown (&ccp_fsm[unit]);
@@ -289,7 +289,8 @@ static void ccp_protrej (unit) int unit;
 /*
  * ccp_resetci - initialize at start of negotiation.
  */
-static void ccp_resetci (f) fsm *f;
+static void
+ccp_resetci (fsm *f)
 {
   ccp_options *go = &ccp_gotoptions[f->unit];
   u_char opt_buf[CCP_MAX_OPTION_LENGTH];
@@ -447,8 +448,7 @@ static void ccp_resetci (f) fsm *f;
  * ccp_cilen - Return total length of our configuration info.
  */
 static int
-ccp_cilen (f)
-fsm *f;
+ccp_cilen (fsm *f)
 {
   ccp_options *go = &ccp_gotoptions[f->unit];
 
@@ -460,9 +460,8 @@ fsm *f;
 /*
  * ccp_addci - put our requests in a packet.
  */
-static void ccp_addci (f, p, lenp) fsm *f;
-u_char *p;
-int *lenp;
+static void
+ccp_addci (fsm *f, u_char *p, int *lenp)
 {
   int res;
   ccp_options *go = &ccp_gotoptions[f->unit];
@@ -606,10 +605,7 @@ int *lenp;
  * 1 iff the packet was OK.
  */
 static int
-ccp_ackci (f, p, len)
-fsm *f;
-u_char *p;
-int len;
+ccp_ackci (fsm *f, u_char *p, int len)
 {
   ccp_options *go = &ccp_gotoptions[f->unit];
   u_char *p0 = p;
@@ -693,11 +689,7 @@ int len;
  * Returns 1 iff the nak was OK.
  */
 static int
-ccp_nakci (f, p, len, treat_as_reject)
-fsm *f;
-u_char *p;
-int len;
-int treat_as_reject;
+ccp_nakci (fsm *f, u_char *p, int len, int treat_as_reject)
 {
   ccp_options *go = &ccp_gotoptions[f->unit];
   ccp_options no;  /* options we've seen already */
@@ -787,10 +779,7 @@ int treat_as_reject;
  * ccp_rejci - reject some of our suggested compression methods.
  */
 static int
-ccp_rejci (f, p, len)
-fsm *f;
-u_char *p;
-int len;
+ccp_rejci (fsm *f, u_char *p, int len)
 {
   ccp_options *go = &ccp_gotoptions[f->unit];
   ccp_options try; /* options to request next time */
@@ -871,11 +860,7 @@ int len;
  * appropriately.
  */
 static int
-ccp_reqci (f, p, lenp, dont_nak)
-fsm *f;
-u_char *p;
-int *lenp;
-int dont_nak;
+ccp_reqci (fsm *f, u_char *p, int *lenp, int dont_nak)
 {
   int ret, newret, res;
   u_char *p0, *retp;
@@ -1197,8 +1182,7 @@ int dont_nak;
  * Make a string name for a compression method (or 2).
  */
 static char *
-method_name (opt, opt2)
-ccp_options *opt, *opt2;
+method_name (ccp_options *opt, ccp_options *opt2)
 {
   static char result[64];
 
@@ -1261,7 +1245,8 @@ ccp_options *opt, *opt2;
 /*
  * CCP has come up - inform the kernel driver and log a message.
  */
-static void ccp_up (f) fsm *f;
+static void
+ccp_up (fsm *f)
 {
   ccp_options *go = &ccp_gotoptions[f->unit];
   ccp_options *ho = &ccp_hisoptions[f->unit];
@@ -1300,7 +1285,8 @@ static void ccp_up (f) fsm *f;
 /*
  * CCP has gone down - inform the kernel driver.
  */
-static void ccp_down (f) fsm *f;
+static void
+ccp_down (fsm *f)
 {
   if (ccp_localstate[f->unit] & RACK_PENDING)
     UNTIMEOUT (ccp_rack_timeout, f);
@@ -1329,11 +1315,7 @@ static char *ccp_codenames[] = {
 };
 
 static int
-ccp_printpkt (p, plen, printer, arg)
-u_char *p;
-int plen;
-void (*printer) __P ((void *, char *, ...));
-void *arg;
+ccp_printpkt (u_char *p, int plen, void (*printer) __P ((void *, char *, ...)), void *arg)
 {
   u_char *p0, *optend;
   int code, id, len;
@@ -1464,9 +1446,8 @@ void *arg;
  * decompression; if it was, we take CCP down, thus disabling
  * compression :-(, otherwise we issue the reset-request.
  */
-static void ccp_datainput (unit, pkt, len) int unit;
-u_char *pkt;
-int len;
+static void
+ccp_datainput (int unit, u_char *pkt, int len)
 {
   fsm *f;
 
@@ -1513,7 +1494,8 @@ int len;
 /*
  * Timeout waiting for reset-ack.
  */
-static void ccp_rack_timeout (arg) void *arg;
+static void
+ccp_rack_timeout (void *arg)
 {
   fsm *f = arg;
 

@@ -43,10 +43,6 @@
  * $Id: pppd.h,v 1.96 2008/06/23 11:47:18 paulus Exp $
  */
 
-/*
- * TODO:
- */
-
 #ifndef __PPPD_H__
 #define __PPPD_H__
 
@@ -72,9 +68,10 @@
  * Limits.
  */
 
-// ZDY: increase this to 128 create each pppox virtual interface a pppd instance.
-// It's indexed by virtual interfaxce vector index.
-// TODO: sync it with pppoeclient/pppox definition...
+/*
+ * Size the imported per-unit arrays for the PPPoX integration, where each
+ * virtual interface owns a distinct PPP control-plane instance.
+ */
 #define NUM_PPP	     128  /* One PPP interface supported (per process) */
 #define MAXWORDLEN   1024 /* max length of word in file (incl null) */
 #define MAXARGS	     1	  /* max # args to a command */
@@ -421,7 +418,7 @@ struct channel
   /* set the receive-side PPP parameters of the channel */
   void (*recv_config) __P ((int, u_int32_t, int, int) );
   /* cleanup on error or normal exit */
-  // ZDY: add a unit to support per unit cleanup.
+  /* Cleanup callback receives the PPPoX unit for per-instance teardown. */
   void (*cleanup) __P ((int) );
   /* close the device, called in children after fork */
   void (*close) __P ((void) );
@@ -501,7 +498,7 @@ void dump_packet __P ((const char *, u_char *, int) );
 /* dump packet to debug log if interesting */
 
 /* Procedures exported from auth.c */
-void init_auth_context (int unit);   // ZDY: init auth context.
+void init_auth_context (int unit);
 void link_required __P ((int) );     /* we are starting to use the link */
 void start_link __P ((int) );	     /* bring the link up now */
 void link_terminated __P ((int) );   /* we are finished with the link */
@@ -546,7 +543,7 @@ int loop_frame __P ((unsigned char *, int) ); /* should we bring link up? */
 
 /* Procedures exported from sys-*.c */
 // Timeout moved here in order to be driven by vpp.
-void pppd_calltimeout ();
+void pppd_calltimeout (void);
 void timeout __P ((void (*func) (void *), void *arg, int s, int us));
 /* Call func(arg) after s.us seconds */
 void untimeout __P ((void (*func) (void *), void *arg));
@@ -778,9 +775,6 @@ extern void (*snoop_send_hook) __P ((unsigned char *p, int len));
 #define EXIT_INIT_FAILED	18
 #define EXIT_AUTH_TOPEER_FAILED 19
 #define EXIT_CNID_AUTH_FAILED	20
-
-// ZDY: debug all
-#define DEBUGALL
 
 /*
  * Debug macros.  Slightly useful for finding bugs in pppd, not particularly

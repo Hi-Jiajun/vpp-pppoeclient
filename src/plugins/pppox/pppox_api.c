@@ -29,9 +29,6 @@ pppox_api_string_field_to_vec (u8 **dst, const u8 *src, size_t src_size)
 {
   size_t len = strnlen ((const char *) src, src_size);
 
-  if (len == src_size)
-    return VNET_API_ERROR_INVALID_VALUE;
-
   vec_validate (*dst, len);
   clib_memcpy (*dst, src, len);
   (*dst)[len] = 0;
