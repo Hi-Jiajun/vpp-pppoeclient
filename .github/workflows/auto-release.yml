@@ -1,0 +1,294 @@
+name: Auto Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      vpp_ref:
+        description: Stable VPP tag from official FDio/vpp used for prebuilt packages
+        required: false
+        default: ""
+      master_ref:
+        description: Commit ref on master branch to package (defaults to master tip)
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-release-master
+  cancel-in-progress: false
+
+env:
+  VPP_UPSTREAM_URL: https://github.com/FDio/vpp.git
+
+jobs:
+  build-prebuilt-packages:
+    name: Build ${{ matrix.distro_id }} ${{ matrix.package_type }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro_id: ubuntu24.04
+            container_image: ubuntu:24.04
+            package_type: deb
+            package_arch: amd64
+            plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            cc_override: ""
+            bootstrap_cmd: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                git ca-certificates ruby ruby-dev build-essential rsync
+          - distro_id: debian12
+            container_image: debian:12
+            package_type: deb
+            package_arch: amd64
+            plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            cc_override: ""
+            bootstrap_cmd: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                git ca-certificates ruby ruby-dev build-essential rsync
+          - distro_id: fedora43
+            container_image: fedora:43
+            package_type: rpm
+            package_arch: x86_64
+            plugin_lib_dir: /usr/lib64/vpp_plugins
+            make_os_id: fedora
+            make_os_version_id: "43"
+            cc_override: gcc
+            skip_install_dep: "true"
+            bootstrap_cmd: |
+              dnf install -y \
+                openssl git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                autoconf automake bison byacc libtool \
+                apr-devel numactl-devel check check-devel ninja-build ccache \
+                xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
+                nasm socat subunit subunit-devel openssl-devel python3-devel \
+                python3-ply python3-virtualenv python3-jsonschema cmake llvm clang \
+                chrpath libffi-devel rpm-build \
+                which findutils rsync
+          - distro_id: rockylinux9
+            container_image: rockylinux:9
+            package_type: rpm
+            package_arch: x86_64
+            plugin_lib_dir: /usr/lib64/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            cc_override: gcc
+            skip_install_dep: "true"
+            bootstrap_cmd: |
+              dnf install -y dnf-plugins-core epel-release
+              dnf config-manager --set-enabled crb || true
+              dnf install -y \
+                openssl git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                autoconf automake bison byacc libtool \
+                apr-devel numactl-devel check check-devel ninja-build ccache \
+                xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
+                nasm socat subunit subunit-devel openssl-devel python3-devel \
+                python3-ply python3-virtualenv python3-jsonschema cmake llvm clang \
+                infiniband-diags chrpath libffi-devel rpm-build \
+                which findutils rsync
+          - distro_id: rhel9
+            container_image: rockylinux:9
+            package_type: rpm
+            package_arch: x86_64
+            plugin_lib_dir: /usr/lib64/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            cc_override: gcc
+            skip_install_dep: "true"
+            bootstrap_cmd: |
+              dnf install -y dnf-plugins-core epel-release
+              dnf config-manager --set-enabled crb || true
+              dnf install -y \
+                openssl git ca-certificates ruby ruby-devel gcc gcc-c++ make \
+                autoconf automake bison byacc libtool \
+                apr-devel numactl-devel check check-devel ninja-build ccache \
+                xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
+                nasm socat subunit subunit-devel openssl-devel python3-devel \
+                python3-ply python3-virtualenv python3-jsonschema cmake llvm clang \
+                infiniband-diags chrpath libffi-devel rpm-build \
+                which findutils rsync
+    container:
+      image: ${{ matrix.container_image }}
+      options: --user root
+
+    steps:
+      - name: Bootstrap container tools
+        shell: bash
+        run: ${{ matrix.bootstrap_cmd }}
+
+      - name: Checkout packaging branch (this workflow's ref)
+        uses: actions/checkout@v5
+        with:
+          path: packaging
+          fetch-depth: 1
+
+      - name: Checkout master (pppoeclient source tree)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.master_ref != '' && inputs.master_ref || 'master' }}
+          path: pppoeclient-src
+          fetch-depth: 1
+
+      - name: Install packaging tools
+        shell: bash
+        run: |
+          gem install --no-document fpm
+
+      - name: Prepare metadata
+        id: meta
+        shell: bash
+        run: |
+          cd pppoeclient-src
+          short_sha="$(git rev-parse --short HEAD)"
+          full_sha="$(git rev-parse HEAD)"
+          cd "${GITHUB_WORKSPACE}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
+            vpp_ref="${{ inputs.vpp_ref }}"
+          else
+            chmod +x packaging/scripts/get-latest-fdio-stable-tag.sh
+            vpp_ref="$(./packaging/scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
+          fi
+          {
+            echo "short_sha=${short_sha}"
+            echo "full_sha=${full_sha}"
+            echo "vpp_ref=${vpp_ref}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build precompiled package
+        shell: bash
+        run: |
+          extra_args=()
+          if [[ "${{ matrix.skip_install_dep }}" == "true" ]]; then
+            extra_args+=(--skip-install-dep)
+          fi
+          chmod +x packaging/scripts/build-binary-packages.sh
+          ./packaging/scripts/build-binary-packages.sh \
+            --vpp-repo-url "${VPP_UPSTREAM_URL}" \
+            --vpp-ref "${{ steps.meta.outputs.vpp_ref }}" \
+            --package-type "${{ matrix.package_type }}" \
+            --package-arch "${{ matrix.package_arch }}" \
+            --distro-id "${{ matrix.distro_id }}" \
+            --plugin-lib-dir "${{ matrix.plugin_lib_dir }}" \
+            --make-os-id "${{ matrix.make_os_id }}" \
+            --make-os-version-id "${{ matrix.make_os_version_id }}" \
+            --cc "${{ matrix.cc_override }}" \
+            "${extra_args[@]}" \
+            --plugin-source-dir "${GITHUB_WORKSPACE}/pppoeclient-src" \
+            --output-dir dist \
+            --short-sha "${{ steps.meta.outputs.short_sha }}" \
+            --full-sha "${{ steps.meta.outputs.full_sha }}"
+          ls -lh dist
+
+      - name: Verify precompiled package smoke test
+        shell: bash
+        run: |
+          package_file="$(find dist -maxdepth 1 -type f \( -name '*.deb' -o -name '*.rpm' \) | head -n 1)"
+          if [[ -z "${package_file}" ]]; then
+            echo "No built package found in dist/" >&2
+            exit 1
+          fi
+          chmod +x packaging/scripts/verify-prebuilt-package.sh
+          ./packaging/scripts/verify-prebuilt-package.sh \
+            --package-type "${{ matrix.package_type }}" \
+            --package-file "${package_file}" \
+            --plugin-lib-dir "${{ matrix.plugin_lib_dir }}"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: prebuilt-${{ matrix.distro_id }}
+          path: dist/*
+
+  create-release:
+    name: Publish release
+    needs: build-prebuilt-packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout packaging branch
+        uses: actions/checkout@v5
+        with:
+          path: packaging
+          fetch-depth: 1
+
+      - name: Checkout master (pppoeclient source tree)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.master_ref != '' && inputs.master_ref || 'master' }}
+          path: pppoeclient-src
+          fetch-depth: 1
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          cd pppoeclient-src
+          short_sha="$(git rev-parse --short HEAD)"
+          full_sha="$(git rev-parse HEAD)"
+          cd "${GITHUB_WORKSPACE}"
+          release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
+            vpp_ref="${{ inputs.vpp_ref }}"
+          else
+            chmod +x packaging/scripts/get-latest-fdio-stable-tag.sh
+            vpp_ref="$(./packaging/scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
+          fi
+          vpp_ref_sanitized="$(echo "${vpp_ref}" | sed 's/[^A-Za-z0-9._-]/-/g')"
+          release_tag="fdio-vpp-${vpp_ref_sanitized}-${short_sha}"
+          release_title="FDio/vpp ${vpp_ref} Prebuilt Packages (${short_sha})"
+          {
+            echo "tag=${release_tag}"
+            echo "title=${release_title}"
+            echo "date=${release_date}"
+            echo "vpp_ref=${vpp_ref}"
+            echo "full_sha=${full_sha}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download built artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Check whether release already exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "${{ steps.meta.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release
+        if: steps.exists.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${{ steps.meta.outputs.tag }}" \
+            --target "${{ steps.meta.outputs.full_sha }}" \
+            --title "${{ steps.meta.outputs.title }}" \
+            --notes "Automated prebuilt plugin packages created from master commit ${{ steps.meta.outputs.full_sha }} against VPP ref ${{ steps.meta.outputs.vpp_ref }} on ${{ steps.meta.outputs.date }}." \
+            --generate-notes \
+            dist/*.deb dist/*.rpm
+
+      - name: Upload assets to existing release
+        if: steps.exists.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload "${{ steps.meta.outputs.tag }}" \
+            dist/*.deb dist/*.rpm \
+            --clobber

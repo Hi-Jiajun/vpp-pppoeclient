@@ -1,0 +1,99 @@
+name: Mirror pppoeclient from upstream
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: Upstream branch or ref to mirror from
+        required: false
+        default: feat/pr-pppoeclient
+      skip_release:
+        description: Skip triggering auto-release even if master updates
+        required: false
+        default: "false"
+  schedule:
+    - cron: "17 3 * * *"
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  UPSTREAM_URL: https://github.com/Hi-Jiajun/vpp.git
+  UPSTREAM_REF_DEFAULT: feat/pr-pppoeclient
+  PLUGIN_PREFIX: src/plugins/pppoeclient
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure git identity
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Resolve upstream ref
+        id: resolve
+        run: |
+          upstream_ref="${{ github.event.inputs.upstream_ref }}"
+          if [[ -z "${upstream_ref}" ]]; then
+            upstream_ref="${UPSTREAM_REF_DEFAULT}"
+          fi
+          echo "upstream_ref=${upstream_ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Clone upstream vpp (full history)
+        run: |
+          git clone --no-tags --branch "${{ steps.resolve.outputs.upstream_ref }}" "${UPSTREAM_URL}" upstream-vpp
+
+      - name: Run git subtree split for plugin prefix
+        id: split
+        run: |
+          cd upstream-vpp
+          git subtree split --prefix="${PLUGIN_PREFIX}" -b pppoeclient-split HEAD
+          split_tip="$(git rev-parse pppoeclient-split)"
+          commit_count="$(git rev-list --count pppoeclient-split)"
+          echo "split_tip=${split_tip}" >> "$GITHUB_OUTPUT"
+          echo "commit_count=${commit_count}" >> "$GITHUB_OUTPUT"
+          echo "Split produced ${commit_count} commits, tip ${split_tip}"
+
+      - name: Fetch current mirror master
+        id: mirror
+        run: |
+          cd upstream-vpp
+          git remote add mirror "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git fetch mirror master || true
+          mirror_tip="$(git rev-parse FETCH_HEAD 2>/dev/null || echo '')"
+          echo "mirror_tip=${mirror_tip}" >> "$GITHUB_OUTPUT"
+          echo "Current mirror master tip: ${mirror_tip:-<empty>}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to mirror master (force-with-lease)
+        id: push
+        if: steps.split.outputs.split_tip != steps.mirror.outputs.mirror_tip
+        run: |
+          cd upstream-vpp
+          if [[ -z "${{ steps.mirror.outputs.mirror_tip }}" ]]; then
+            echo "Mirror master is empty, doing initial push."
+            git push mirror pppoeclient-split:master
+          else
+            git push mirror pppoeclient-split:master \
+              --force-with-lease="master:${{ steps.mirror.outputs.mirror_tip }}"
+          fi
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Skip (mirror already up to date)
+        if: steps.split.outputs.split_tip == steps.mirror.outputs.mirror_tip
+        run: |
+          echo "Mirror master already matches split tip (${{ steps.split.outputs.split_tip }})."
+          echo "No push needed, no release triggered."
+
+      - name: Trigger auto-release workflow
+        if: steps.push.outputs.pushed == 'true' && github.event.inputs.skip_release != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run auto-release.yml \
+            --ref "${{ github.ref_name }}" \
+            -f master_ref="${{ steps.split.outputs.split_tip }}"
+          echo "Triggered auto-release.yml on ref ${{ github.ref_name }} with master_ref ${{ steps.split.outputs.split_tip }}"
