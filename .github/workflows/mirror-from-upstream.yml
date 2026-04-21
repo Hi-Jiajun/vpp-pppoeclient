@@ -11,8 +11,13 @@ on:
         description: Skip triggering auto-release even if master updates
         required: false
         default: "false"
-  schedule:
-    - cron: "17 3 * * *"
+  # Daily sync is intentionally disabled: pppoeclient currently depends
+  # on fork-only extensions to the dhcp plugin (dhcp6_*_runtime_t types
+  # added in Hi-Jiajun/vpp feat/pr-pppoeclient), which break compile
+  # against stock FDio/vpp. Re-enable the schedule once that PR is
+  # merged upstream and auto-release can build cleanly again.
+  # schedule:
+  #   - cron: "17 3 * * *"
 
 permissions:
   contents: write
