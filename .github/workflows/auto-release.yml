@@ -157,9 +157,16 @@ jobs:
       - name: Checkout master (pppoeclient source tree)
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.master_ref || 'master' }}
+          ref: master
           path: pppoeclient-src
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Switch to requested master commit
+        if: ${{ inputs.master_ref != '' }}
+        shell: bash
+        run: |
+          cd pppoeclient-src
+          git checkout "${{ inputs.master_ref }}"
 
       - name: Install packaging tools
         shell: bash
@@ -246,9 +253,16 @@ jobs:
       - name: Checkout master (pppoeclient source tree)
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.master_ref || 'master' }}
+          ref: master
           path: pppoeclient-src
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Switch to requested master commit
+        if: ${{ inputs.master_ref != '' }}
+        shell: bash
+        run: |
+          cd pppoeclient-src
+          git checkout "${{ inputs.master_ref }}"
 
       - name: Prepare release metadata
         id: meta
