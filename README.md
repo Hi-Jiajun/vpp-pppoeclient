@@ -146,8 +146,7 @@ author、date、message 与上游一致。
 ☕ 如果这个插件或发布包帮到你，欢迎请我喝杯咖啡  
 <sub>If this plugin or the prebuilt packages helped you, feel free to buy me a coffee.</sub>
 
-<img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/wechat.svg" alt="WeChat sponsor QR" width="220" />
-<img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/alipay.svg" alt="Alipay sponsor QR" width="220" />
+<img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/wechat.svg" alt="WeChat sponsor QR" width="220" /> <img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/alipay.svg" alt="Alipay sponsor QR" width="220" />
 
 ## 📜 License
 
