@@ -133,7 +133,7 @@ jobs:
       - name: Checkout master (pppoeclient source tree)
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.master_ref != '' && inputs.master_ref || 'master' }}
+          ref: ${{ inputs.master_ref || 'master' }}
           path: pppoeclient-src
           fetch-depth: 1
 
@@ -222,7 +222,7 @@ jobs:
       - name: Checkout master (pppoeclient source tree)
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.master_ref != '' && inputs.master_ref || 'master' }}
+          ref: ${{ inputs.master_ref || 'master' }}
           path: pppoeclient-src
           fetch-depth: 1
 

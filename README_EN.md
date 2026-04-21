@@ -82,19 +82,21 @@ Assume the physical port is `GigabitEthernet0/8/0`, with credentials `user@isp` 
 ```bash
 vppctl
 
-# Create a PPPoE client bound to a physical port
+# Create a PPPoE client bound to a physical port; a sw-if-index is returned (assume 5)
 vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1
 
-# Configure auth
-vpp# pppox set auth sw-if-index <returned sw-if-index> username user@isp password secret
+# Configure auth and other per-session parameters (MTU / default route / peer DNS as needed)
+vpp# set pppoe client 5 username user@isp password secret use-peer-dns add-default-route
 
-# Watch the session
+# Inspect the session
 vpp# show pppoe client
 vpp# show pppoe client history
 vpp# show pppoe client detail
 ```
 
-Full CLI surface is in [`pppox/cli.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppox/cli.c) and [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c).
+All operator-facing actions live in the `pppoe client` CLI namespace — `create pppoe client` / `set pppoe client` / `show pppoe client ...`. The plugin drives the internal `pppox` control plane (LCP / PAP / CHAP / IPCP); operators do not need to touch `pppox` commands directly.
+
+Full CLI surface is in [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c) — `set pppoe client` accepts `ac-name`, `service-name`, `username`, `password`, `mtu`, `mru`, `timeout`, `use-peer-dns`, `add-default-route{,4,6}`, `source-mac`, etc.
 
 ## 🧱 Build from source
 

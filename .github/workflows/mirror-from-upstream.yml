@@ -18,6 +18,10 @@ permissions:
   contents: write
   actions: write
 
+concurrency:
+  group: mirror-from-upstream
+  cancel-in-progress: false
+
 env:
   UPSTREAM_URL: https://github.com/Hi-Jiajun/vpp.git
   UPSTREAM_REF_DEFAULT: feat/pr-pppoeclient
@@ -56,13 +60,12 @@ jobs:
           echo "commit_count=${commit_count}" >> "$GITHUB_OUTPUT"
           echo "Split produced ${commit_count} commits, tip ${split_tip}"
 
-      - name: Fetch current mirror master
+      - name: Fetch current mirror master tip
         id: mirror
         run: |
           cd upstream-vpp
           git remote add mirror "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
-          git fetch mirror master || true
-          mirror_tip="$(git rev-parse FETCH_HEAD 2>/dev/null || echo '')"
+          mirror_tip="$(git ls-remote mirror refs/heads/master | awk '{print $1}')"
           echo "mirror_tip=${mirror_tip}" >> "$GITHUB_OUTPUT"
           echo "Current mirror master tip: ${mirror_tip:-<empty>}"
         env:

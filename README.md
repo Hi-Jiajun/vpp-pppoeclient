@@ -82,11 +82,11 @@ sudo dnf install ./vpp-pppoeclient-plugins-v26.02-fedora43.x86_64.rpm
 ```bash
 vppctl
 
-# 创建 PPPoE 客户端，绑定物理口
+# 创建 PPPoE 客户端，绑定物理口；返回 sw-if-index（假设为 5）
 vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1
 
-# 设置认证
-vpp# pppox set auth sw-if-index <返回的 sw-if-index> username user@isp password secret
+# 设置认证及其它会话参数（MTU / 默认路由 / peer DNS 等按需）
+vpp# set pppoe client 5 username user@isp password secret use-peer-dns add-default-route
 
 # 观察会话状态
 vpp# show pppoe client
@@ -94,7 +94,9 @@ vpp# show pppoe client history
 vpp# show pppoe client detail
 ```
 
-完整 CLI 见源代码 [`pppox/cli.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppox/cli.c) 与 [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c)。
+上层运维操作都走 `create pppoe client` / `set pppoe client` / `show pppoe client ...` 这套 `pppoe client` 命名空间的 CLI；插件内部再驱动 `pppox` 控制面完成 LCP / PAP / CHAP / IPCP 协商，运维层面不需要直接碰 `pppox` 命令。
+
+完整 CLI 见源代码 [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c)（`set pppoe client` 支持 `ac-name`、`service-name`、`username`、`password`、`mtu`、`mru`、`timeout`、`use-peer-dns`、`add-default-route{,4,6}`、`source-mac` 等参数）。
 
 ## 🧱 从源码编译
 
