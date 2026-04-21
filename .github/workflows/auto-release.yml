@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: auto-release-master
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   VPP_UPSTREAM_URL: https://github.com/FDio/vpp.git
