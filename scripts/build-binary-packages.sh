@@ -137,7 +137,7 @@ fi
 if [[ -n "${CC_OVERRIDE}" ]]; then
   MAKE_ARGS+=("CC=${CC_OVERRIDE}")
 fi
-MAKE_ARGS+=('VPP_EXTRA_CMAKE_ARGS=-DVPP_PLUGINS="ppp,pppoeclient"')
+MAKE_ARGS+=('VPP_EXTRA_CMAKE_ARGS=-DVPP_PLUGINS="ppp,dhcp,pppoeclient"')
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
