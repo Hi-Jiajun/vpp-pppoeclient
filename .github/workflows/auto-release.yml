@@ -30,6 +30,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - distro_id: ubuntu22.04
+            container_image: ubuntu:22.04
+            package_type: deb
+            package_arch: amd64
+            plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            cc_override: ""
+            bootstrap_cmd: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                git ca-certificates ruby ruby-dev build-essential rsync
           - distro_id: ubuntu24.04
             container_image: ubuntu:24.04
             package_type: deb
@@ -44,6 +56,18 @@ jobs:
                 git ca-certificates ruby ruby-dev build-essential rsync
           - distro_id: debian12
             container_image: debian:12
+            package_type: deb
+            package_arch: amd64
+            plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
+            make_os_id: ""
+            make_os_version_id: ""
+            cc_override: ""
+            bootstrap_cmd: |
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                git ca-certificates ruby ruby-dev build-essential rsync
+          - distro_id: debian13
+            container_image: debian:13
             package_type: deb
             package_arch: amd64
             plugin_lib_dir: /usr/lib/x86_64-linux-gnu/vpp_plugins
