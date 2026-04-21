@@ -141,6 +141,14 @@ make build-release VPP_EXTRA_CMAKE_ARGS='-DVPP_PLUGINS="ppp,pppoeclient"'
 **结果**：`master` 分支的 commit 历史 = 在 vpp fork 里开发 pppoeclient 的真实 commit 序列，
 author、date、message 与上游一致。
 
+## 💖 赞助 <sub>Sponsor</sub>
+
+☕ 如果这个插件或发布包帮到你，欢迎请我喝杯咖啡  
+<sub>If this plugin or the prebuilt packages helped you, feel free to buy me a coffee.</sub>
+
+<img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/wechat.svg" alt="WeChat sponsor QR" width="220" />
+<img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/alipay.svg" alt="Alipay sponsor QR" width="220" />
+
 ## 📜 License
 
 代码主体 [Apache-2.0](./LICENSE)。

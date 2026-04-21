@@ -139,6 +139,14 @@ The `master` branch here is maintained automatically by [`mirror-from-upstream.y
 
 **Net effect**: the `master` commit history equals the real sequence of commits made while developing the plugin on the vpp fork — author, date and commit message all preserved.
 
+## 💖 Sponsor <sub>赞助</sub>
+
+☕ If this plugin or the prebuilt packages helped you, feel free to buy me a coffee.  
+<sub>如果这个插件或发布包帮到你，欢迎请我喝杯咖啡。</sub>
+
+<img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/wechat.svg" alt="WeChat sponsor QR" width="220" />
+<img src="https://raw.githubusercontent.com/Hi-Jiajun/Hi-Jiajun/master/assets/generated/sponsors/alipay.svg" alt="Alipay sponsor QR" width="220" />
+
 ## 📜 License
 
 The source code is licensed under [Apache-2.0](./LICENSE).
