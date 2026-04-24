@@ -198,8 +198,8 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
             vpp_ref="${{ inputs.vpp_ref }}"
           elif [[ "${VPP_UPSTREAM_URL}" != *"FDio/vpp"* ]]; then
-            # Fork build — use its default branch, skip tag detection
-            vpp_ref="fork-default"
+            # Fork build — use its feature branch; version detected after clone
+            vpp_ref="feat/pr-pppoeclient"
           else
             chmod +x packaging/scripts/get-latest-fdio-stable-tag.sh
             vpp_ref="$(./packaging/scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"

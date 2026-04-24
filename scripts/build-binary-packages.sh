@@ -300,13 +300,13 @@ EOF
 fi
 
 echo "Cloning ${VPP_REPO_URL} at ${VPP_REF}"
-if [[ "${VPP_REF}" == "fork-default" || -z "${VPP_REF}" ]]; then
-  git clone --branch feat/pr-pppoeclient "${VPP_REPO_URL}" "${VPP_WORKTREE}"
-  # Fork may lack FDio tags; fetch them so VPP CMake can detect the version
+git clone --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
+
+# For non-tag refs (e.g. branch names), detect version from git history
+if ! [[ "${VPP_REF}" =~ ^v[0-9] ]]; then
   git -C "${VPP_WORKTREE}" fetch --tags https://github.com/FDio/vpp.git || true
-  VPP_REF="$(git -C "${VPP_WORKTREE}" describe --tags --always HEAD 2>/dev/null || echo "dev")"
-else
-  git clone --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
+  VPP_REF="$(git -C "${VPP_WORKTREE}" describe --tags --abbrev=0 HEAD 2>/dev/null || echo "v0.0")"
+  echo "Detected VPP version from git: ${VPP_REF}"
 fi
 
 echo "Overlaying current plugin sources"
