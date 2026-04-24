@@ -164,26 +164,6 @@ if [[ -z "${SHORT_SHA}" ]]; then
   SHORT_SHA="$(git -C "${PLUGIN_SOURCE_DIR}" rev-parse --short HEAD 2>/dev/null || git -C "${REPO_ROOT}" rev-parse --short HEAD)"
 fi
 
-VPP_VERSION_RAW="${VPP_REF#v}"
-VPP_VERSION="${VPP_VERSION_RAW%%-*}"
-if [[ -z "${VPP_VERSION}" ]]; then
-  VPP_VERSION="0.0"
-fi
-
-VPP_REF_SANITIZED="$(echo "${VPP_REF}" | sed 's/[^A-Za-z0-9._-]/-/g')"
-ITERATION_SUFFIX="$(echo "${VPP_VERSION_RAW#${VPP_VERSION}}" | sed 's/^[.-]*//' | sed 's/[^A-Za-z0-9]/./g' | sed 's/\.\.+/./g' | sed 's/^\.//; s/\.$//')"
-if [[ -n "${ITERATION_SUFFIX}" ]]; then
-  PACKAGE_ITERATION="${ITERATION_SUFFIX}.git${SHORT_SHA}.${DISTRO_ID}"
-else
-  PACKAGE_ITERATION="git${SHORT_SHA}.${DISTRO_ID}"
-fi
-
-if [[ "${PACKAGE_TYPE}" == "deb" ]]; then
-  ASSET_NAME="${PACKAGE_NAME}-${VPP_REF_SANITIZED}-${DISTRO_ID}.${PACKAGE_ARCH}.deb"
-else
-  ASSET_NAME="${PACKAGE_NAME}-${VPP_REF_SANITIZED}-${DISTRO_ID}.${PACKAGE_ARCH}.rpm"
-fi
-
 rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 
@@ -307,6 +287,26 @@ if ! [[ "${VPP_REF}" =~ ^v[0-9] ]]; then
   git -C "${VPP_WORKTREE}" fetch --tags https://github.com/FDio/vpp.git || true
   VPP_REF="$(git -C "${VPP_WORKTREE}" describe --tags --abbrev=0 HEAD 2>/dev/null || echo "v0.0")"
   echo "Detected VPP version from git: ${VPP_REF}"
+fi
+
+VPP_VERSION_RAW="${VPP_REF#v}"
+VPP_VERSION="${VPP_VERSION_RAW%%-*}"
+if [[ -z "${VPP_VERSION}" ]]; then
+  VPP_VERSION="0.0"
+fi
+
+VPP_REF_SANITIZED="$(echo "${VPP_REF}" | sed 's/[^A-Za-z0-9._-]/-/g')"
+ITERATION_SUFFIX="$(echo "${VPP_VERSION_RAW#${VPP_VERSION}}" | sed 's/^[.-]*//' | sed 's/[^A-Za-z0-9]/./g' | sed 's/\.\.+/./g' | sed 's/^\.//; s/\.$//')"
+if [[ -n "${ITERATION_SUFFIX}" ]]; then
+  PACKAGE_ITERATION="${ITERATION_SUFFIX}.git${SHORT_SHA}.${DISTRO_ID}"
+else
+  PACKAGE_ITERATION="git${SHORT_SHA}.${DISTRO_ID}"
+fi
+
+if [[ "${PACKAGE_TYPE}" == "deb" ]]; then
+  ASSET_NAME="${PACKAGE_NAME}-${VPP_REF_SANITIZED}-${DISTRO_ID}.${PACKAGE_ARCH}.deb"
+else
+  ASSET_NAME="${PACKAGE_NAME}-${VPP_REF_SANITIZED}-${DISTRO_ID}.${PACKAGE_ARCH}.rpm"
 fi
 
 echo "Overlaying current plugin sources"
