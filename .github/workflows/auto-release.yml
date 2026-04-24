@@ -314,7 +314,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          if gh release view "${{ steps.meta.outputs.tag }}" >/dev/null 2>&1; then
+          if gh release view "${{ steps.meta.outputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -327,6 +327,7 @@ jobs:
         shell: bash
         run: |
           gh release create "${{ steps.meta.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
             --target "${{ steps.meta.outputs.full_sha }}" \
             --title "${{ steps.meta.outputs.title }}" \
             --notes "Automated prebuilt plugin packages from master commit ${{ steps.meta.outputs.full_sha }} against VPP ref ${{ steps.meta.outputs.vpp_ref }} (repo: ${{ steps.meta.outputs.vpp_upstream_url }}) on ${{ steps.meta.outputs.date }}." \
@@ -340,5 +341,6 @@ jobs:
         shell: bash
         run: |
           gh release upload "${{ steps.meta.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
             dist/*.deb dist/*.rpm \
             --clobber
