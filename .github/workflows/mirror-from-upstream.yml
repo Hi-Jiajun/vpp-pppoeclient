@@ -30,6 +30,7 @@ env:
 jobs:
   mirror:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Configure git identity
         run: |
@@ -45,9 +46,9 @@ jobs:
           fi
           echo "upstream_ref=${upstream_ref}" >> "$GITHUB_OUTPUT"
 
-      - name: Clone upstream vpp (full history)
+      - name: Clone upstream vpp (treeless — commits only, blobs fetched on demand)
         run: |
-          git clone --no-tags --branch "${{ steps.resolve.outputs.upstream_ref }}" "${UPSTREAM_URL}" upstream-vpp
+          git clone --filter=tree:0 --no-tags --branch "${{ steps.resolve.outputs.upstream_ref }}" "${UPSTREAM_URL}" upstream-vpp
 
       - name: Run git subtree split for plugin prefix
         id: split

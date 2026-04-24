@@ -2,7 +2,7 @@
 set -euo pipefail
 
 VPP_REPO_URL="https://github.com/FDio/vpp.git"
-VPP_REF="v26.02"
+VPP_REF=""
 PACKAGE_TYPE=""
 PACKAGE_ARCH=""
 DISTRO_ID=""
@@ -123,6 +123,12 @@ done
 
 if [[ -z "${PACKAGE_TYPE}" || -z "${PACKAGE_ARCH}" || -z "${DISTRO_ID}" || -z "${PLUGIN_LIB_DIR}" ]]; then
   echo "Missing required packaging arguments" >&2
+  usage >&2
+  exit 1
+fi
+
+if [[ -z "${VPP_REF}" ]]; then
+  echo "Missing required argument: --vpp-ref" >&2
   usage >&2
   exit 1
 fi
@@ -294,8 +300,7 @@ EOF
 fi
 
 echo "Cloning ${VPP_REPO_URL} at ${VPP_REF}"
-git clone --depth 1 --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
-git -C "${VPP_WORKTREE}" fetch --tags --force origin
+git clone --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
 
 echo "Overlaying current plugin sources"
 rsync -a --delete "${PLUGIN_SOURCE_DIR}/" "${VPP_WORKTREE}/src/plugins/pppoeclient/"

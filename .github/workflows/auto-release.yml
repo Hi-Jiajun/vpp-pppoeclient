@@ -30,6 +30,12 @@ jobs:
   build-prebuilt-packages:
     name: Build ${{ matrix.distro_id }} ${{ matrix.package_type }}
     runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      full_sha: ${{ steps.meta.outputs.full_sha }}
+      vpp_ref: ${{ steps.meta.outputs.vpp_ref }}
+      vpp_upstream_url: ${{ steps.meta.outputs.vpp_upstream_url }}
     strategy:
       fail-fast: false
       matrix:
@@ -195,6 +201,7 @@ jobs:
             echo "short_sha=${short_sha}"
             echo "full_sha=${full_sha}"
             echo "vpp_ref=${vpp_ref}"
+            echo "vpp_upstream_url=${VPP_UPSTREAM_URL}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build precompiled package
@@ -237,7 +244,7 @@ jobs:
             --plugin-lib-dir "${{ matrix.plugin_lib_dir }}"
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: prebuilt-${{ matrix.distro_id }}
           path: dist/*
@@ -246,43 +253,21 @@ jobs:
     name: Publish release
     needs: build-prebuilt-packages
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: auto-release-publish
+      cancel-in-progress: false
 
     steps:
-      - name: Checkout packaging branch
-        uses: actions/checkout@v5
-        with:
-          path: packaging
-          fetch-depth: 1
-
-      - name: Checkout master (pppoeclient source tree)
-        uses: actions/checkout@v5
-        with:
-          ref: master
-          path: pppoeclient-src
-          fetch-depth: 0
-
-      - name: Switch to requested master commit
-        if: ${{ inputs.master_ref != '' }}
-        shell: bash
-        run: |
-          cd pppoeclient-src
-          git checkout "${{ inputs.master_ref }}"
-
       - name: Prepare release metadata
         id: meta
         shell: bash
         run: |
-          cd pppoeclient-src
-          short_sha="$(git rev-parse --short HEAD)"
-          full_sha="$(git rev-parse HEAD)"
-          cd "${GITHUB_WORKSPACE}"
+          short_sha="${{ needs.build-prebuilt-packages.outputs.short_sha }}"
+          full_sha="${{ needs.build-prebuilt-packages.outputs.full_sha }}"
+          vpp_ref="${{ needs.build-prebuilt-packages.outputs.vpp_ref }}"
+          vpp_upstream_url="${{ needs.build-prebuilt-packages.outputs.vpp_upstream_url }}"
           release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
-            vpp_ref="${{ inputs.vpp_ref }}"
-          else
-            chmod +x packaging/scripts/get-latest-fdio-stable-tag.sh
-            vpp_ref="$(./packaging/scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
-          fi
           vpp_ref_sanitized="$(echo "${vpp_ref}" | sed 's/[^A-Za-z0-9._-]/-/g')"
           release_tag="fdio-vpp-${vpp_ref_sanitized}-${short_sha}"
           release_title="FDio/vpp ${vpp_ref} Prebuilt Packages (${short_sha})"
@@ -292,11 +277,11 @@ jobs:
             echo "date=${release_date}"
             echo "vpp_ref=${vpp_ref}"
             echo "full_sha=${full_sha}"
-            echo "vpp_upstream_url=${VPP_UPSTREAM_URL}"
+            echo "vpp_upstream_url=${vpp_upstream_url}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download built artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
