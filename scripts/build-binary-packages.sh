@@ -302,7 +302,9 @@ fi
 echo "Cloning ${VPP_REPO_URL} at ${VPP_REF}"
 if [[ "${VPP_REF}" == "fork-default" || -z "${VPP_REF}" ]]; then
   git clone "${VPP_REPO_URL}" "${VPP_WORKTREE}"
-  VPP_REF="$(git -C "${VPP_WORKTREE}" describe --tags --always HEAD 2>/dev/null || git -C "${VPP_WORKTREE}" rev-parse --short HEAD)"
+  # Fork may lack FDio tags; fetch them so VPP CMake can detect the version
+  git -C "${VPP_WORKTREE}" fetch --tags https://github.com/FDio/vpp.git || true
+  VPP_REF="$(git -C "${VPP_WORKTREE}" describe --tags --always HEAD 2>/dev/null || echo "dev")"
 else
   git clone --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
 fi
