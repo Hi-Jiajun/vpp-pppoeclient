@@ -18,10 +18,13 @@
 
 - **Userspace-native**: runs entirely inside the VPP dataplane, avoiding the context-switch overhead of the classic `pppd` + kernel tunnel design
 - **Single consolidated plugin**: PPPoE discovery, the PPPoX core, PAP/CHAP, IPCP / IPv6CP are all shipped as one `pppoeclient_plugin.so`
+- **VLAN / QinQ encapsulation**: native single-tag VLAN and QinQ (double-tag) encap/decap in the datapath
 - **Concurrent sessions**: every PPPoE session is carried by a dedicated `sw-if-index` virtual interface, so many dial-ups run in parallel
+- **DHCPv6-PD integration**: dynamically loads `dhcp` plugin's `*_get_runtime()` symbols via `vlib_get_plugin_symbol`; `show pppoe client detail` displays DHCPv6 IA-NA address and PD prefix lease state
+- **Session persistence + reliable PADT**: session ID and AC MAC written atomically to a file; on exit a PADT is sent via raw AF_PACKET socket directly, independent of the VPP datapath
 - **Observability**: `show pppoe client history` / `show pppoe client summary` expose per-session state machine transitions and key events
-- **Backoff with jitter**: PADI retries use configurable jittered backoff to avoid reconnection storms
-- **User-assignable interface names**: operators can pick business-meaningful names such as `wan0` / `ppp0` instead of the auto-assigned `pppox0`
+- **Exponential backoff**: PADI retries use exponential backoff (cap 30s) to avoid reconnection storms
+- **User-assignable interface names**: `create pppoe client ... name wan0` assigns a business-meaningful name instead of the auto-assigned `pppox0`
 
 ## 🏗️ Architecture
 
@@ -33,6 +36,7 @@ flowchart LR
     PPPoE["PPPoE Client<br/>(discovery + session)"]
     PPPoX["PPPoX Core<br/>(PPP / PAP / CHAP / IPCP)"]
     PPPD["pppd-derived<br/>protocol stack"]
+    DHCP["DHCP Plugin<br/>(DHCPv6 IA-NA / PD)<br/><i>dynamic symbol load</i>"]
     TUN["Virtual if<br/>(wan0 / ppp0)"]
   end
 
@@ -41,11 +45,13 @@ flowchart LR
   PPPoX --> PPPD
   HW --> PPPoE
   PPPoX --> TUN
+  DHCP -. "get_runtime()" .-> PPPoE
   TUN --> UPPER["Upper-layer traffic<br/>(ip4-unicast / ip6)"]
 ```
 
 - Single shared library `pppoeclient_plugin.so`; loading it enables every capability
 - PAP / CHAP / LCP / IPCP are ported from `pppd` and rewired to run as VPP graph nodes
+- DHCPv6-PD integration loads `dhcp_plugin.so` symbols at runtime via `vlib_get_plugin_symbol`, creating no hard link-time dependency
 - Control plane and data plane share the same VPP worker — zero-copy all the way
 
 ## 🚀 Quick Start
@@ -56,12 +62,18 @@ Pick a package for your distribution from [Releases](https://github.com/Hi-Jiaju
 
 | Distro | Format | Arch |
 |---|---|---|
+| Ubuntu 22.04 | `.deb` | amd64 |
 | Ubuntu 24.04 | `.deb` | amd64 |
 | Debian 12 | `.deb` | amd64 |
+| Debian 13 | `.deb` | amd64 |
 | Fedora 43 | `.rpm` | x86_64 |
 | Rocky Linux 9 / RHEL 9 | `.rpm` | x86_64 |
 
-Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}` — the `<vpp_ref>` matches the FD.io VPP stable tag recorded in the Release title.
+Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`.
+`<vpp_ref>` is the VPP stable tag used during the build (currently `v26.02` series).
+
+> **Note**: prebuilt packages are currently built against the [Hi-Jiajun/vpp](https://github.com/Hi-Jiajun/vpp) fork (ships pppoeclient + dhcp extensions).
+> You need the matching vpp runtime from that fork. Packages will switch to official FDio vpp once the PR is merged.
 
 ### 2. Install
 
@@ -73,7 +85,7 @@ sudo apt install ./vpp-pppoeclient-plugins-v26.02-ubuntu24.04.amd64.deb
 sudo dnf install ./vpp-pppoeclient-plugins-v26.02-fedora43.x86_64.rpm
 ```
 
-The package depends on a matching FD.io VPP runtime (`vpp` / `vpp-plugin-core`) for the same stable tag.
+The package depends on a matching VPP runtime (`vpp` / `vpp-plugin-core`) for the same stable tag.
 
 ### 3. Bring up a PPPoE session
 
@@ -82,21 +94,24 @@ Assume the physical port is `GigabitEthernet0/8/0`, with credentials `user@isp` 
 ```bash
 vppctl
 
-# Create a PPPoE client bound to a physical port; a sw-if-index is returned (assume 5)
-vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1
+# Create a PPPoE client bound to a physical port; name assigns an interface name (optional)
+vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1 name wan0
 
 # Configure auth and other per-session parameters (MTU / default route / peer DNS as needed)
-vpp# set pppoe client 5 username user@isp password secret use-peer-dns add-default-route
+vpp# set pppoe client wan0 username user@isp password secret use-peer-dns add-default-route
 
 # Inspect the session
 vpp# show pppoe client
 vpp# show pppoe client history
-vpp# show pppoe client detail
+vpp# show pppoe client detail    # includes DHCPv6-PD lease state (requires dhcp plugin)
+
+# Delete the session
+vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1 del
 ```
 
 All operator-facing actions live in the `pppoe client` CLI namespace — `create pppoe client` / `set pppoe client` / `show pppoe client ...`. The plugin drives the internal `pppox` control plane (LCP / PAP / CHAP / IPCP); operators do not need to touch `pppox` commands directly.
 
-Full CLI surface is in [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c) — `set pppoe client` accepts `ac-name`, `service-name`, `username`, `password`, `mtu`, `mru`, `timeout`, `use-peer-dns`, `add-default-route{,4,6}`, `source-mac`, etc.
+Full CLI surface is in [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c) — `set pppoe client` accepts `ac-name`, `service-name`, `username`, `password`, `mtu`, `mru`, `timeout`, `use-peer-dns`, `add-default-route{,4,6}`, etc.
 
 ## 🧱 Build from source
 

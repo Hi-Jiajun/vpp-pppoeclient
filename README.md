@@ -17,10 +17,13 @@
 
 - **用户态原生实现**：完全跑在 VPP 数据面，避开传统 `pppd` + kernel tunnel 的 context switch 开销
 - **单插件整合**：PPPoE 发现、PPPoX 控制面、PAP/CHAP 认证、IPCP/IPv6CP 协商合并为 `pppoeclient_plugin.so`
+- **VLAN / QinQ 封装**：数据面原生支持单层 VLAN 和 QinQ（双层 VLAN）封装/解封装
 - **多实例并发**：每个 PPPoE 会话用独立 `sw-if-index` 虚拟接口承载，支持同时跑多路拨号
+- **DHCPv6-PD 集成**：通过 `vlib_get_plugin_symbol` 动态加载 `dhcp` 插件的 `*_get_runtime()` 接口，`show pppoe client detail` 直接展示 DHCPv6 IA-NA 地址和 PD 前缀租约状态
+- **会话持久化 + 可靠 PADT**：会话 ID 和 AC MAC 原子写入文件；进程退出时通过 raw AF_PACKET socket 直接发 PADT，不依赖 VPP 数据面路径，确保可靠断线
 - **可观测性丰富**：`show pppoe client history` / `show pppoe client summary` 暴露每条会话的状态机迁移 + 关键事件
-- **退避与抖动**：PADI 重试自带 backoff-jitter，避免大量客户端同时重连时的风暴
-- **接口命名可控**：`wan0`、`ppp0` 之类业务语义名称可由运维指定，不局限于 VPP 自动分配的 `pppox0`
+- **退避与抖动**：PADI 重试指数退避（cap 30s），避免大量客户端同时重连时的风暴
+- **接口命名可控**：`create pppoe client ... name wan0` 指定业务语义名称，不局限于 VPP 自动分配的 `pppox0`
 
 ## 🏗️ 架构
 
@@ -32,6 +35,7 @@ flowchart LR
     PPPoE["PPPoE Client<br/>(discovery + session)"]
     PPPoX["PPPoX Core<br/>(PPP / PAP / CHAP / IPCP)"]
     PPPD["pppd-derived<br/>protocol stack"]
+    DHCP["DHCP Plugin<br/>(DHCPv6 IA-NA / PD)<br/><i>dynamic symbol load</i>"]
     TUN["Virtual if<br/>(wan0 / ppp0)"]
   end
 
@@ -40,11 +44,13 @@ flowchart LR
   PPPoX --> PPPD
   HW --> PPPoE
   PPPoX --> TUN
+  DHCP -. "get_runtime()" .-> PPPoE
   TUN --> UPPER["Upper-layer traffic<br/>(ip4-unicast / ip6)"]
 ```
 
 - `pppoeclient_plugin.so` 单一 shared library，加载即启用所有能力
 - PPPoX 核的 PAP/CHAP/LCP/IPCP 来自 `pppd` 的协议实现，移植到 VPP graph node 模型下
+- DHCPv6-PD 集成通过 `vlib_get_plugin_symbol` 在运行时按需加载 `dhcp_plugin.so` 的 `*_get_runtime()` 符号，不产生硬依赖
 - 控制平面和数据平面在同一 VPP worker 里，数据包零拷贝
 
 ## 🚀 Quick Start
@@ -55,13 +61,18 @@ flowchart LR
 
 | 发行版 | 包格式 | 架构 |
 |---|---|---|
+| Ubuntu 22.04 | `.deb` | amd64 |
 | Ubuntu 24.04 | `.deb` | amd64 |
 | Debian 12 | `.deb` | amd64 |
+| Debian 13 | `.deb` | amd64 |
 | Fedora 43 | `.rpm` | x86_64 |
 | Rocky Linux 9 / RHEL 9 | `.rpm` | x86_64 |
 
-包命名格式：`vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`，
-其 `<vpp_ref>` 是 Release tag 里标注的 FD.io VPP 官方 stable tag。
+包命名格式：`vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`。
+`<vpp_ref>` 取自构建时所用 VPP 仓库的 stable tag（当前为 `v26.02` 系列）。
+
+> **注意**：当前预编译包基于 [Hi-Jiajun/vpp](https://github.com/Hi-Jiajun/vpp) fork 构建（包含 pppoeclient + dhcp 扩展），
+> 需要安装该 fork 提供的 vpp 运行时。待 PR 合并进 FDio 官方后将切换为官方 vpp 构建。
 
 ### 2. 安装
 
@@ -73,7 +84,7 @@ sudo apt install ./vpp-pppoeclient-plugins-v26.02-ubuntu24.04.amd64.deb
 sudo dnf install ./vpp-pppoeclient-plugins-v26.02-fedora43.x86_64.rpm
 ```
 
-预编译包依赖与 Release tag 对应的 FD.io VPP 官方版本，请先安装匹配版本的 `vpp` / `vpp-plugin-core`。
+预编译包依赖与 Release tag 对应的 VPP 运行时，请先安装匹配版本的 `vpp` / `vpp-plugin-core`。
 
 ### 3. 起一条 PPPoE 拨号
 
@@ -82,21 +93,24 @@ sudo dnf install ./vpp-pppoeclient-plugins-v26.02-fedora43.x86_64.rpm
 ```bash
 vppctl
 
-# 创建 PPPoE 客户端，绑定物理口；返回 sw-if-index（假设为 5）
-vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1
+# 创建 PPPoE 客户端，绑定物理口；name 指定接口名称（可选）
+vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1 name wan0
 
 # 设置认证及其它会话参数（MTU / 默认路由 / peer DNS 等按需）
-vpp# set pppoe client 5 username user@isp password secret use-peer-dns add-default-route
+vpp# set pppoe client wan0 username user@isp password secret use-peer-dns add-default-route
 
 # 观察会话状态
 vpp# show pppoe client
 vpp# show pppoe client history
-vpp# show pppoe client detail
+vpp# show pppoe client detail    # 含 DHCPv6-PD 租约状态（需 dhcp 插件加载）
+
+# 删除会话
+vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1 del
 ```
 
 上层运维操作都走 `create pppoe client` / `set pppoe client` / `show pppoe client ...` 这套 `pppoe client` 命名空间的 CLI；插件内部再驱动 `pppox` 控制面完成 LCP / PAP / CHAP / IPCP 协商，运维层面不需要直接碰 `pppox` 命令。
 
-完整 CLI 见源代码 [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c)（`set pppoe client` 支持 `ac-name`、`service-name`、`username`、`password`、`mtu`、`mru`、`timeout`、`use-peer-dns`、`add-default-route{,4,6}`、`source-mac` 等参数）。
+完整 CLI 见源代码 [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c)（`set pppoe client` 支持 `ac-name`、`service-name`、`username`、`password`、`mtu`、`mru`、`timeout`、`use-peer-dns`、`add-default-route{,4,6}` 等参数）。
 
 ## 🧱 从源码编译
 
