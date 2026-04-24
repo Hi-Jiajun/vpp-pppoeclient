@@ -11,13 +11,8 @@ on:
         description: Skip triggering auto-release even if master updates
         required: false
         default: "false"
-  # Daily sync is intentionally disabled: pppoeclient currently depends
-  # on fork-only extensions to the dhcp plugin (dhcp6_*_runtime_t types
-  # added in Hi-Jiajun/vpp feat/pr-pppoeclient), which break compile
-  # against stock FDio/vpp. Re-enable the schedule once that PR is
-  # merged upstream and auto-release can build cleanly again.
-  # schedule:
-  #   - cron: "17 3 * * *"
+  schedule:
+    - cron: "17 3 * * *"
 
 permissions:
   contents: write
@@ -103,5 +98,6 @@ jobs:
         run: |
           gh workflow run auto-release.yml \
             --ref "${{ github.ref_name }}" \
+            -f vpp_upstream_url="${UPSTREAM_URL}" \
             -f master_ref="${{ steps.split.outputs.split_tip }}"
-          echo "Triggered auto-release.yml on ref ${{ github.ref_name }} with master_ref ${{ steps.split.outputs.split_tip }}"
+          echo "Triggered auto-release.yml on ref ${{ github.ref_name }} with vpp_upstream_url=${UPSTREAM_URL} master_ref ${{ steps.split.outputs.split_tip }}"

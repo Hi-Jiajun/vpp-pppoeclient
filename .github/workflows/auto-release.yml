@@ -3,8 +3,12 @@ name: Auto Release
 on:
   workflow_dispatch:
     inputs:
+      vpp_upstream_url:
+        description: VPP repository URL to build against (FDio official or fork)
+        required: false
+        default: ""
       vpp_ref:
-        description: Stable VPP tag from official FDio/vpp used for prebuilt packages
+        description: VPP tag, branch or SHA to build against (auto-detected from FDio stable if blank)
         required: false
         default: ""
       master_ref:
@@ -20,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VPP_UPSTREAM_URL: https://github.com/FDio/vpp.git
+  VPP_UPSTREAM_URL: ${{ github.event.inputs.vpp_upstream_url || 'https://github.com/FDio/vpp.git' }}
 
 jobs:
   build-prebuilt-packages:
@@ -288,6 +292,7 @@ jobs:
             echo "date=${release_date}"
             echo "vpp_ref=${vpp_ref}"
             echo "full_sha=${full_sha}"
+            echo "vpp_upstream_url=${VPP_UPSTREAM_URL}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Download built artifacts
@@ -317,7 +322,7 @@ jobs:
           gh release create "${{ steps.meta.outputs.tag }}" \
             --target "${{ steps.meta.outputs.full_sha }}" \
             --title "${{ steps.meta.outputs.title }}" \
-            --notes "Automated prebuilt plugin packages created from master commit ${{ steps.meta.outputs.full_sha }} against VPP ref ${{ steps.meta.outputs.vpp_ref }} on ${{ steps.meta.outputs.date }}." \
+            --notes "Automated prebuilt plugin packages from master commit ${{ steps.meta.outputs.full_sha }} against VPP ref ${{ steps.meta.outputs.vpp_ref }} (repo: ${{ steps.meta.outputs.vpp_upstream_url }}) on ${{ steps.meta.outputs.date }}." \
             --generate-notes \
             dist/*.deb dist/*.rpm
 
