@@ -307,6 +307,7 @@ rsync -a --delete "${PLUGIN_SOURCE_DIR}/" "${VPP_WORKTREE}/src/plugins/pppoeclie
 
 if [[ "${SKIP_INSTALL_DEP}" -eq 0 ]]; then
   echo "Installing VPP build dependencies"
+  export DEBIAN_FRONTEND=noninteractive
   make -C "${VPP_WORKTREE}" UNATTENDED=y SUDO= "${MAKE_ARGS[@]}" install-dep
 else
   echo "Skipping VPP top-level install-dep step"
