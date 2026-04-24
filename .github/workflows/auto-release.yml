@@ -35,6 +35,7 @@ jobs:
       short_sha: ${{ steps.meta.outputs.short_sha }}
       full_sha: ${{ steps.meta.outputs.full_sha }}
       vpp_ref: ${{ steps.meta.outputs.vpp_ref }}
+      vpp_branch: ${{ steps.meta.outputs.vpp_branch }}
       vpp_upstream_url: ${{ steps.meta.outputs.vpp_upstream_url }}
     strategy:
       fail-fast: false
@@ -197,17 +198,25 @@ jobs:
           cd "${GITHUB_WORKSPACE}"
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
             vpp_ref="${{ inputs.vpp_ref }}"
+            vpp_branch="${vpp_ref}"
           elif [[ "${VPP_UPSTREAM_URL}" != *"FDio/vpp"* ]]; then
-            # Fork build — use its feature branch; version detected after clone
-            vpp_ref="feat/pr-pppoeclient"
+            # Fork build — use feature branch for clone; detect version tag for release
+            tmpclone="$(mktemp -d)"
+            git clone --branch feat/pr-pppoeclient --single-branch "${VPP_UPSTREAM_URL}" "${tmpclone}/vpp-ref"
+            git -C "${tmpclone}/vpp-ref" fetch --tags https://github.com/FDio/vpp.git || true
+            vpp_ref="$(git -C "${tmpclone}/vpp-ref" describe --tags --abbrev=0 HEAD 2>/dev/null || echo "v0.0")"
+            rm -rf "${tmpclone}"
+            vpp_branch="feat/pr-pppoeclient"
           else
             chmod +x packaging/scripts/get-latest-fdio-stable-tag.sh
             vpp_ref="$(./packaging/scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
+            vpp_branch="${vpp_ref}"
           fi
           {
             echo "short_sha=${short_sha}"
             echo "full_sha=${full_sha}"
             echo "vpp_ref=${vpp_ref}"
+            echo "vpp_branch=${vpp_branch}"
             echo "vpp_upstream_url=${VPP_UPSTREAM_URL}"
           } >> "$GITHUB_OUTPUT"
 
@@ -221,7 +230,7 @@ jobs:
           chmod +x packaging/scripts/build-binary-packages.sh
           ./packaging/scripts/build-binary-packages.sh \
             --vpp-repo-url "${VPP_UPSTREAM_URL}" \
-            --vpp-ref "${{ steps.meta.outputs.vpp_ref }}" \
+            --vpp-ref "${{ steps.meta.outputs.vpp_branch }}" \
             --package-type "${{ matrix.package_type }}" \
             --package-arch "${{ matrix.package_arch }}" \
             --distro-id "${{ matrix.distro_id }}" \
@@ -266,6 +275,12 @@ jobs:
       cancel-in-progress: false
 
     steps:
+      - name: Checkout packaging branch
+        uses: actions/checkout@v5
+        with:
+          path: packaging
+          fetch-depth: 1
+
       - name: Prepare release metadata
         id: meta
         shell: bash
