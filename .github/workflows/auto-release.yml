@@ -118,7 +118,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
-            cc_override: gcc
+            cc_override: ""
             skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y dnf-plugins-core epel-release
@@ -139,7 +139,7 @@ jobs:
             plugin_lib_dir: /usr/lib64/vpp_plugins
             make_os_id: ""
             make_os_version_id: ""
-            cc_override: gcc
+            cc_override: ""
             skip_install_dep: "true"
             bootstrap_cmd: |
               dnf install -y dnf-plugins-core epel-release
