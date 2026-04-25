@@ -98,6 +98,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh workflow run auto-release.yml \
+            --repo "${{ github.repository }}" \
             --ref "${{ github.ref_name }}" \
             -f vpp_upstream_url="${UPSTREAM_URL}" \
             -f master_ref="${{ steps.split.outputs.split_tip }}"
