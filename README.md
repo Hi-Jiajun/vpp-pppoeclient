@@ -18,12 +18,17 @@
 - **用户态原生实现**：完全跑在 VPP 数据面，避开传统 `pppd` + kernel tunnel 的 context switch 开销
 - **单插件整合**：PPPoE 发现、PPPoX 控制面、PAP/CHAP 认证、IPCP/IPv6CP 协商合并为 `pppoeclient_plugin.so`
 - **VLAN / QinQ 封装**：数据面原生支持单层 VLAN 和 QinQ（双层 VLAN）封装/解封装
+- **TCP MSS Clamping**：自动修正 TCP MSS 避免分片
 - **多实例并发**：每个 PPPoE 会话用独立 `sw-if-index` 虚拟接口承载，支持同时跑多路拨号
 - **DHCPv6-PD 集成**：通过 `vlib_get_plugin_symbol` 动态加载 `dhcp` 插件的 `*_get_runtime()` 接口，`show pppoe client detail` 直接展示 DHCPv6 IA-NA 地址和 PD 前缀租约状态
 - **会话持久化 + 可靠 PADT**：会话 ID 和 AC MAC 原子写入文件；进程退出时通过 raw AF_PACKET socket 直接发 PADT，不依赖 VPP 数据面路径，确保可靠断线
+- **RDMA Flow Steering**：原生支持 RDMA 网卡的 PPPoE flow steering（discovery `0x8863` + session `0x8864`）
+- **DPDK MAC 容忍**：MFIB 组播重放时容忍 MAC 地址重复，避免误判
 - **可观测性丰富**：`show pppoe client history` / `show pppoe client summary` 暴露每条会话的状态机迁移 + 关键事件
 - **退避与抖动**：PADI 重试指数退避（cap 30s），避免大量客户端同时重连时的风暴
+- **Host-Uniq-less 回退**：ISP 端未返回 host-uniq 时的智能回退匹配机制
 - **接口命名可控**：`create pppoe client ... name wan0` 指定业务语义名称，不局限于 VPP 自动分配的 `pppox0`
+- **完整测试套件**：3521 行 Python 回归测试（73 个测试方法），覆盖发现、会话、认证、CLI 全路径
 
 ## 🏗️ 架构
 

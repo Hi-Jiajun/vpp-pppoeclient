@@ -19,12 +19,17 @@
 - **Userspace-native**: runs entirely inside the VPP dataplane, avoiding the context-switch overhead of the classic `pppd` + kernel tunnel design
 - **Single consolidated plugin**: PPPoE discovery, the PPPoX core, PAP/CHAP, IPCP / IPv6CP are all shipped as one `pppoeclient_plugin.so`
 - **VLAN / QinQ encapsulation**: native single-tag VLAN and QinQ (double-tag) encap/decap in the datapath
+- **TCP MSS clamping**: automatic TCP MSS correction to avoid fragmentation
 - **Concurrent sessions**: every PPPoE session is carried by a dedicated `sw-if-index` virtual interface, so many dial-ups run in parallel
 - **DHCPv6-PD integration**: dynamically loads `dhcp` plugin's `*_get_runtime()` symbols via `vlib_get_plugin_symbol`; `show pppoe client detail` displays DHCPv6 IA-NA address and PD prefix lease state
 - **Session persistence + reliable PADT**: session ID and AC MAC written atomically to a file; on exit a PADT is sent via raw AF_PACKET socket directly, independent of the VPP datapath
+- **RDMA flow steering**: native PPPoE flow steering for RDMA NICs (discovery `0x8863` + session `0x8864`)
+- **DPDK MAC tolerance**: tolerates MAC address duplication during MFIB multicast replay
 - **Observability**: `show pppoe client history` / `show pppoe client summary` expose per-session state machine transitions and key events
 - **Exponential backoff**: PADI retries use exponential backoff (cap 30s) to avoid reconnection storms
+- **Host-Uniq-less fallback**: intelligent fallback matching when ISP does not return host-uniq
 - **User-assignable interface names**: `create pppoe client ... name wan0` assigns a business-meaningful name instead of the auto-assigned `pppox0`
+- **Full test suite**: 3521-line Python regression tests (73 test methods) covering discovery, session, auth, and CLI
 
 ## 🏗️ Architecture
 
