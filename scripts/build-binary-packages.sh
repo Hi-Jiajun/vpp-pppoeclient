@@ -312,6 +312,12 @@ fi
 echo "Overlaying current plugin sources"
 rsync -a --delete "${PLUGIN_SOURCE_DIR}/" "${VPP_WORKTREE}/src/plugins/pppoeclient/"
 
+# DPDK >= 26.07 configures its meson venv against the distro python; on
+# Ubuntu 24.04 (python 3.12, no stdlib distutils) the venv must use the
+# setuptools distutils shim or the DPDK build dies with
+# "ModuleNotFoundError: No module named 'distutils'".
+export SETUPTOOLS_USE_DISTUTILS=local
+
 if [[ "${SKIP_INSTALL_DEP}" -eq 0 ]]; then
   echo "Installing VPP build dependencies"
   export DEBIAN_FRONTEND=noninteractive
@@ -321,6 +327,11 @@ else
   mkdir -p "${VPP_WORKTREE}/build-root"
   touch "${VPP_WORKTREE}/build-root/.deps.ok"
 fi
+
+# The prebuilt plugin package does not ship DPDK PMDs; skip DPDK's
+# mlx4/mlx5 drivers so the external DPDK build does not depend on the full
+# rdma-core provider set (and the link step stays deterministic).
+MAKE_ARGS+=('DPDK_MLX_DEFAULT=n')
 
 echo "Building plugin binaries against ${VPP_REF}"
 make -C "${VPP_WORKTREE}" "${MAKE_ARGS[@]}" build-release

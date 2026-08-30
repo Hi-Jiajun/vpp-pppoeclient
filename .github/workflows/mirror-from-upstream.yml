@@ -97,9 +97,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Build against OFFICIAL FDio/vpp: the DHCPv6 runtime exports the
+          # plugin observes were merged upstream in July 2026, so the fork is
+          # no longer required.  UPSTREAM_URL (the fork) is only used for
+          # mirroring the plugin subtree above.
           gh workflow run auto-release.yml \
             --repo "${{ github.repository }}" \
             --ref "${{ github.ref_name }}" \
-            -f vpp_upstream_url="${UPSTREAM_URL}" \
             -f master_ref="${{ steps.split.outputs.split_tip }}"
-          echo "Triggered auto-release.yml on ref ${{ github.ref_name }} with vpp_upstream_url=${UPSTREAM_URL} master_ref ${{ steps.split.outputs.split_tip }}"
+          echo "Triggered auto-release.yml on ref ${{ github.ref_name }} (official FDio build) master_ref ${{ steps.split.outputs.split_tip }}"

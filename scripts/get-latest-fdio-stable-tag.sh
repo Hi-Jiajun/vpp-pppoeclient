@@ -13,7 +13,7 @@ latest_tag="$(
     | awk '{print $2}' \
     | sed 's#refs/tags/##' \
     | sed 's/\^{}//' \
-    | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+    | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?(-rc[0-9]+)?$' \
     | sort -uV \
     | tail -n 1
 )"
