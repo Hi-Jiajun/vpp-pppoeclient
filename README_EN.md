@@ -75,22 +75,23 @@ Pick a package for your distribution from [Releases](https://github.com/Hi-Jiaju
 | Rocky Linux 9 / RHEL 9 | `.rpm` | x86_64 |
 
 Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`.
-`<vpp_ref>` is the VPP stable tag used during the build (currently `v26.02` series).
+`<vpp_ref>` is the VPP version ref used during the build (currently official `v26.10-rc0`).
 
-> **Note**: prebuilt packages are currently built against the [Hi-Jiajun/vpp](https://github.com/Hi-Jiajun/vpp) fork (ships pppoeclient + dhcp extensions).
-> You need the matching vpp runtime from that fork. Packages will switch to official FDio vpp once the PR is merged.
+> **Note**: since June 2026 prebuilt packages are built directly against official [FDio/vpp](https://github.com/FDio/vpp).
+> The DHCPv6 runtime exports the plugin needs (`dhcp6_*_get_runtime`) were merged upstream in July 2026,
+> and the plugin loads them dynamically via `vlib_get_plugin_symbol`, so it is fully compatible with official VPP.
 
 ### 2. Install
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./vpp-pppoeclient-plugins-v26.02-ubuntu24.04.amd64.deb
+sudo apt install ./vpp-pppoeclient-plugins-v26.10-rc0-ubuntu24.04.amd64.deb
 
 # Fedora / Rocky / RHEL
-sudo dnf install ./vpp-pppoeclient-plugins-v26.02-fedora43.x86_64.rpm
+sudo dnf install ./vpp-pppoeclient-plugins-v26.10-rc0-fedora43.x86_64.rpm
 ```
 
-The package depends on a matching VPP runtime (`vpp` / `vpp-plugin-core`) for the same stable tag.
+The package depends on a matching VPP runtime (`vpp` / `vpp-plugin-core`) for the same ref.
 
 ### 3. Bring up a PPPoE session
 
