@@ -76,11 +76,15 @@ Pick a package for your distribution from [Releases](https://github.com/Hi-Jiaju
 | Rocky Linux 9 / RHEL 9 | `.rpm` | x86_64 |
 
 Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`.
-`<vpp_ref>` is the VPP version ref used during the build (currently official `v26.10-rc0`).
+`<vpp_ref>` is the nearest version tag in the VPP source used for the build (currently `v26.10-rc0`).
 
-> **Note**: since June 2026 prebuilt packages are built directly against official [FDio/vpp](https://github.com/FDio/vpp).
-> The DHCPv6 runtime exports the plugin needs (`dhcp6_*_get_runtime`) were merged upstream in July 2026,
-> and the plugin loads them dynamically via `vlib_get_plugin_symbol`, so it is fully compatible with official VPP.
+> **Note**: prebuilt packages are built against official [FDio/vpp](https://github.com/FDio/vpp) **master**,
+> not the newest tag: `v26.10-rc0` is the version-bump commit from 2026-05-20 and predates the
+> `vlib/handoff.h`, 6-argument `vlib_buffer_enqueue_to_thread`, and DHCPv6 runtime exports
+> (`dhcp6_*_get_runtime`, merged upstream in July 2026; the plugin loads them dynamically via
+> `vlib_get_plugin_symbol`, so it is fully compatible with official VPP). The package filename keeps
+> the nearest tag (`v26.10-rc0`) while the build tracks the master snapshot — install a `vpp` /
+> `vpp-plugin-core` built from the same official master snapshot.
 
 ### 2. Install
 

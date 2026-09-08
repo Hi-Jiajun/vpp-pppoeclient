@@ -1,9 +1,13 @@
 # Performance Benchmarks
 
 > **Date**: 2026-09-09
-> **Plugin version**: `v26.10-rc0~425-g3ee242713` (`feat/pr-pppoeclient` @ `8ca924fcb`)
+> **Plugin version**: `feat/pr-pppoeclient` @ `8ca924fcb` (VPP baseline: official master snapshot `v26.10-rc0~463-g743392f24`)
 > **Scope**: short 5-second smoke benchmarks to establish the performance class;
 > full stability and stress testing will be done with TRex.
+
+> Note: the test VM's `show version` reported `v26.10-rc0~425-g3ee242713`; that was stale git
+> metadata left over from an earlier source sync. The plugin sources were verified byte-for-byte
+> identical to `8ca924fcb`.
 
 ## 1. Environment
 

@@ -37,6 +37,7 @@ jobs:
       vpp_ref: ${{ steps.meta.outputs.vpp_ref }}
       vpp_branch: ${{ steps.meta.outputs.vpp_branch }}
       vpp_upstream_url: ${{ steps.meta.outputs.vpp_upstream_url }}
+      vpp_commit: ${{ steps.meta.outputs.vpp_commit }}
     strategy:
       fail-fast: false
       matrix:
@@ -199,18 +200,26 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
             vpp_ref="${{ inputs.vpp_ref }}"
             vpp_branch="${vpp_ref}"
+            vpp_commit="$(git ls-remote "${VPP_UPSTREAM_URL}" "${vpp_ref}" "refs/heads/${vpp_ref}" "refs/tags/${vpp_ref}" "refs/tags/${vpp_ref}^{}" 2>/dev/null | awk 'NR==1{print $1}')"
+            [[ -n "${vpp_commit}" ]] || vpp_commit="${vpp_ref}"
           elif [[ "${VPP_UPSTREAM_URL}" != *"FDio/vpp"* ]]; then
             # Fork build — use feature branch for clone; detect version tag for release
             tmpclone="$(mktemp -d)"
             git clone --branch feat/pr-pppoeclient --single-branch "${VPP_UPSTREAM_URL}" "${tmpclone}/vpp-ref"
             git -C "${tmpclone}/vpp-ref" fetch --tags https://github.com/FDio/vpp.git || true
             vpp_ref="$(git -C "${tmpclone}/vpp-ref" describe --tags --abbrev=0 HEAD 2>/dev/null || echo "v0.0")"
+            vpp_commit="$(git -C "${tmpclone}/vpp-ref" rev-parse HEAD)"
             rm -rf "${tmpclone}"
             vpp_branch="feat/pr-pppoeclient"
           else
-            chmod +x packaging/scripts/get-latest-fdio-stable-tag.sh
-            vpp_ref="$(./packaging/scripts/get-latest-fdio-stable-tag.sh "${VPP_UPSTREAM_URL}")"
-            vpp_branch="${vpp_ref}"
+            # Build against FDio master, not the newest tag: the latest stable
+            # tag v26.10-rc0 is the version-bump commit from 2026-05-20 and
+            # predates upstream APIs this plugin requires (vlib/handoff.h, the
+            # 6-argument vlib_buffer_enqueue_to_thread, DHCPv6 runtime
+            # exports).  Master carries all of them.
+            vpp_ref="master"
+            vpp_branch="master"
+            vpp_commit="$(git ls-remote "${VPP_UPSTREAM_URL}" refs/heads/master | awk 'NR==1{print $1}')"
           fi
           {
             echo "short_sha=${short_sha}"
@@ -218,6 +227,7 @@ jobs:
             echo "vpp_ref=${vpp_ref}"
             echo "vpp_branch=${vpp_branch}"
             echo "vpp_upstream_url=${VPP_UPSTREAM_URL}"
+            echo "vpp_commit=${vpp_commit}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Build precompiled package
@@ -288,6 +298,7 @@ jobs:
           short_sha="${{ needs.build-prebuilt-packages.outputs.short_sha }}"
           full_sha="${{ needs.build-prebuilt-packages.outputs.full_sha }}"
           vpp_ref="${{ needs.build-prebuilt-packages.outputs.vpp_ref }}"
+          vpp_commit="${{ needs.build-prebuilt-packages.outputs.vpp_commit }}"
           vpp_upstream_url="${{ needs.build-prebuilt-packages.outputs.vpp_upstream_url }}"
           release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           vpp_ref_sanitized="$(echo "${vpp_ref}" | sed 's/[^A-Za-z0-9._-]/-/g')"
@@ -298,6 +309,7 @@ jobs:
             echo "title=${release_title}"
             echo "date=${release_date}"
             echo "vpp_ref=${vpp_ref}"
+            echo "vpp_commit=${vpp_commit}"
             echo "full_sha=${full_sha}"
             echo "vpp_upstream_url=${vpp_upstream_url}"
           } >> "$GITHUB_OUTPUT"
@@ -330,7 +342,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --target "${{ steps.meta.outputs.full_sha }}" \
             --title "${{ steps.meta.outputs.title }}" \
-            --notes "Automated prebuilt plugin packages from master commit ${{ steps.meta.outputs.full_sha }} against VPP ref ${{ steps.meta.outputs.vpp_ref }} (repo: ${{ steps.meta.outputs.vpp_upstream_url }}) on ${{ steps.meta.outputs.date }}." \
+            --notes "Automated prebuilt plugin packages from master commit ${{ steps.meta.outputs.full_sha }} against VPP ref ${{ steps.meta.outputs.vpp_ref }} (${{ steps.meta.outputs.vpp_commit }}, repo: ${{ steps.meta.outputs.vpp_upstream_url }}) on ${{ steps.meta.outputs.date }}." \
             --generate-notes \
             dist/*.deb dist/*.rpm
 

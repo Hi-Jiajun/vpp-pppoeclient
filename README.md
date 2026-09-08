@@ -75,11 +75,14 @@ flowchart LR
 | Rocky Linux 9 / RHEL 9 | `.rpm` | x86_64 |
 
 包命名格式：`vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`。
-`<vpp_ref>` 取自构建时所用 VPP 仓库的版本 ref（当前为官方 `v26.10-rc0`）。
+`<vpp_ref>` 取自构建时 VPP 源码中最近的版本 tag（当前为 `v26.10-rc0`）。
 
-> **说明**：自 2026 年 6 月起，预编译包直接基于官方 [FDio/vpp](https://github.com/FDio/vpp) 构建。
-> 插件所需的 DHCPv6 运行时导出（`dhcp6_*_get_runtime`）已于 2026 年 7 月合入官方主线，
-> 且插件通过 `vlib_get_plugin_symbol` 动态加载该符号，对官方 VPP 完全兼容。
+> **说明**：预编译包基于官方 [FDio/vpp](https://github.com/FDio/vpp) **master 分支**构建，
+> 而不是最新的 tag：`v26.10-rc0` 是 2026-05-20 的版本号起始 commit，早于插件所需的
+> `vlib/handoff.h`、6 参数 `vlib_buffer_enqueue_to_thread` 与 DHCPv6 运行时导出
+> （`dhcp6_*_get_runtime`，2026 年 7 月合入官方主线；插件通过 `vlib_get_plugin_symbol`
+> 动态加载该符号，对官方 VPP 完全兼容）。包文件名沿用最近的 tag `v26.10-rc0`，
+> 实际对应构建时的 master 快照；请安装同期官方 master 构建的 `vpp` / `vpp-plugin-core`。
 
 ### 2. 安装
 
