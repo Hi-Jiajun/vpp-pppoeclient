@@ -28,7 +28,8 @@
 - **退避与抖动**：PADI 重试指数退避（cap 30s），避免大量客户端同时重连时的风暴
 - **Host-Uniq-less 回退**：ISP 端未返回 host-uniq 时的智能回退匹配机制
 - **接口命名可控**：`create pppoe client ... name wan0` 指定业务语义名称，不局限于 VPP 自动分配的 `pppox0`
-- **完整测试套件**：3521 行 Python 回归测试（73 个测试方法），覆盖发现、会话、认证、CLI 全路径
+- **完整测试套件**：4493 行 Python 回归测试（91 个测试方法），覆盖发现、会话、认证、CLI 全路径
+- **性能**：单核 27.8 Mpps PPPoE 转发，10G 网卡下 TCP 4 流 9.23 Gbps；详见 [性能基准测试](./docs/PERFORMANCE.md)
 
 ## 🏗️ 架构
 

@@ -29,7 +29,8 @@
 - **Exponential backoff**: PADI retries use exponential backoff (cap 30s) to avoid reconnection storms
 - **Host-Uniq-less fallback**: intelligent fallback matching when ISP does not return host-uniq
 - **User-assignable interface names**: `create pppoe client ... name wan0` assigns a business-meaningful name instead of the auto-assigned `pppox0`
-- **Full test suite**: 3521-line Python regression tests (73 test methods) covering discovery, session, auth, and CLI
+- **Full test suite**: 4493-line Python regression tests (91 test methods) covering discovery, session, auth, and CLI
+- **Performance**: 27.8 Mpps single-core PPPoE forwarding, 9.23 Gbps TCP with 4 streams on a 10G NIC — see [Performance Benchmarks](./docs/PERFORMANCE_EN.md)
 
 ## 🏗️ Architecture
 
