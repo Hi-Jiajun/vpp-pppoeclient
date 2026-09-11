@@ -5,6 +5,8 @@
 [![release](https://img.shields.io/github/v/release/Hi-Jiajun/vpp-pppoeclient?style=flat-square&label=release)](https://github.com/Hi-Jiajun/vpp-pppoeclient/releases/latest)
 [![license](https://img.shields.io/github/license/Hi-Jiajun/vpp-pppoeclient?style=flat-square&label=license)](./LICENSE)
 
+> **📄 Where is the source code?** This `main` branch holds the README, the packaging scripts and the CI workflows. **The plugin source tree lives on the [`master` branch](https://github.com/Hi-Jiajun/vpp-pppoeclient/tree/master)** — its root is `CMakeLists.txt`, `pppoeclient.c`, `pppox/`, ... mirroring the upstream VPP `src/plugins/` layout. Development happens on [`Hi-Jiajun/vpp@feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient/src/plugins/pppoeclient), the working branch for upstream FD.io Gerrit review.
+
 > A userspace PPPoE client plugin for the [FD.io VPP](https://fd.io/) dataplane.
 > Implements RFC 2516 discovery, session lifecycle, PAP/CHAP authentication,
 > and IPv4/IPv6 address negotiation on top of VPP's vectorized packet

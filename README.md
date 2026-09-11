@@ -5,6 +5,12 @@
 [![release](https://img.shields.io/github/v/release/Hi-Jiajun/vpp-pppoeclient?style=flat-square&label=release)](https://github.com/Hi-Jiajun/vpp-pppoeclient/releases/latest)
 [![license](https://img.shields.io/github/license/Hi-Jiajun/vpp-pppoeclient?style=flat-square&label=license)](./LICENSE)
 
+**A userspace PPPoE client plugin for the [FD.io VPP](https://fd.io/) dataplane** — RFC 2516 discovery & session lifecycle, PAP/CHAP authentication, IPCP / IPv6CP negotiation, DHCPv6-PD, VLAN / QinQ, TCP MSS clamping and RDMA flow steering. One process drives many concurrent PPPoE sessions.
+
+> **📄 Where is the source code?** This `main` branch holds the README, the packaging scripts and the CI workflows. **The plugin source tree lives on the [`master` branch](https://github.com/Hi-Jiajun/vpp-pppoeclient/tree/master)** — its root is `CMakeLists.txt`, `pppoeclient.c`, `pppox/`, ... mirroring the upstream VPP `src/plugins/` layout. Development happens on [`Hi-Jiajun/vpp@feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient/src/plugins/pppoeclient), the working branch for upstream FD.io Gerrit review.
+>
+> 📘 **[English README →](./README_EN.md)**
+
 > 为 [FD.io VPP](https://fd.io/) 数据面设计的用户态 PPPoE 客户端插件。
 > 在 VPP 的高性能 vectorized packet processing 基础上完整实现 RFC 2516 PPPoE
 > 发现/会话生命周期、PAP/CHAP 认证、IPv4/IPv6 地址协商，单进程可管理大量并发 PPPoE 会话。
