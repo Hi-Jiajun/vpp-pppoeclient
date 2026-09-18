@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright (c) 2026 Hi-Jiajun.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Jiajun Liang.
 set -euo pipefail
 
 VPP_REPO_URL="https://github.com/FDio/vpp.git"
@@ -464,7 +464,7 @@ FPM_ARGS=(
   --description "Prebuilt VPP PPPoE client plugins for ${VPP_REF} (source ${VPP_REPO_URL}@${VPP_REF_REQUESTED} ${VPP_COMMIT_SHORT})"
   --url "https://github.com/Hi-Jiajun/vpp-pppoeclient"
   --license "Apache-2.0"
-  --maintainer "Hi-Jiajun"
+  --maintainer "Jiajun Liang"
   --package "${OUTPUT_DIR}/${ASSET_NAME}"
   -C "${PKGROOT}"
   -d "vpp"

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright (c) 2026 Hi-Jiajun.
+# SPDX-FileCopyrightText: Copyright (c) 2026 Jiajun Liang.
 name: Mirror pppoeclient from upstream
 
 on:
