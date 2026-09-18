@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright (c) 2026 Hi-Jiajun.
 set -euo pipefail
 
 VPP_REPO_URL="https://github.com/FDio/vpp.git"
@@ -411,6 +413,7 @@ install -m 755 "${PPPOECLIENT_SO}" "${LIBROOT}/pppoeclient_plugin.so"
 install -m 644 "${PPPOECLIENT_API_JSON}" "${APIDIR}/pppoeclient.api.json"
 install -m 644 "${PPPOX_API_JSON}" "${APIDIR}/pppox.api.json"
 install -m 644 "${REPO_ROOT}/LICENSE" "${DOCROOT}/LICENSE"
+install -m 644 "${REPO_ROOT}/NOTICE" "${DOCROOT}/NOTICE"
 install -m 644 "${REPO_ROOT}/THIRD_PARTY_LICENSES.md" "${DOCROOT}/THIRD_PARTY_LICENSES.md"
 
 cat > "${DOCROOT}/README.md" <<EOF
@@ -446,7 +449,9 @@ Usage:
 Notes:
 - These are prebuilt plugin packages, not full VPP packages
 - Source-based integration remains documented in the repository README
-- See THIRD_PARTY_LICENSES.md for mixed third-party licensing in the pppd-derived sources
+- See NOTICE for the repository attribution notice
+- See THIRD_PARTY_LICENSES.md for mixed third-party licensing (including the
+  full upstream notices) in the pppd-derived sources
 EOF
 
 FPM_ARGS=(

@@ -151,6 +151,9 @@ make build-release VPP_EXTRA_CMAKE_ARGS='-DVPP_PLUGINS="ppp,pppoeclient"'
 
 或者参考本仓 [`scripts/build-binary-packages.sh`](./scripts/build-binary-packages.sh) 的 `fpm` 打包流程，一键出 deb/rpm。
 
+> `master` 分支只镜像插件源码；许可证文件（[`LICENSE`](./LICENSE)、[`NOTICE`](./NOTICE)、
+> [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md)）都在 `main` 分支——再分发源码或二进制时请一并保留。
+
 ## 🗂️ 仓库结构
 
 这个仓库使用**双分支布局**分离"发布产物"和"代码历史"：
@@ -185,10 +188,11 @@ author、date、message 与上游一致。
 
 ## 📜 License
 
-代码主体 [Apache-2.0](./LICENSE)。
+代码主体 [Apache-2.0](./LICENSE)（许可证正文保持官方原文；本仓的版权声明与混合许可说明见 [`NOTICE`](./NOTICE)）。
 
-PPPoX 核内的 pppd 派生文件保留原始 BSD / mixed 协议，
-参考 [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md) 与 master 分支 `pppox/pppd/` 下各文件头。
+PPPoX 核内的 pppd 派生文件保留原始 BSD / mixed 协议（`BSD-4.3TAHOE`、`Mackerras-3-Clause`、
+`RSA-MD`、`Sun-PPP` 等），条款正文汇总在 [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md)，
+与 master 分支 `pppox/pppd/` 下各文件头逐字一致。
 
 ---
 

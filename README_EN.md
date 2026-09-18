@@ -150,6 +150,11 @@ The resulting `build-root/.../vpp_plugins/pppoeclient_plugin.so` is ready to be 
 
 Or reuse the `fpm`-based workflow in [`scripts/build-binary-packages.sh`](./scripts/build-binary-packages.sh) to produce deb/rpm directly.
 
+> The `master` branch mirrors the plugin sources only; the license files
+> ([`LICENSE`](./LICENSE), [`NOTICE`](./NOTICE),
+> [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md)) live on `main` — keep
+> them alongside any source or binary redistribution.
+
 ## 🗂️ Repository layout
 
 This repo uses a **two-branch layout** to separate packaging from code history:
@@ -182,9 +187,15 @@ The `master` branch here is maintained automatically by [`mirror-from-upstream.y
 
 ## 📜 License
 
-The source code is licensed under [Apache-2.0](./LICENSE).
+The source code is licensed under [Apache-2.0](./LICENSE) — the license text is
+kept verbatim, and the project attribution plus the mixed-license note live in
+[`NOTICE`](./NOTICE).
 
-The pppd-derived files under the PPPoX core retain their original BSD / mixed licensing; see [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md) and file headers under `pppox/pppd/` on the master branch.
+The pppd-derived files under the PPPoX core retain their original BSD / mixed
+licensing (`BSD-4.3TAHOE`, `Mackerras-3-Clause`, `RSA-MD`, `Sun-PPP`, ...).  The
+full notices are collected in
+[`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md) and match the file headers
+under `pppox/pppd/` on the `master` branch word for word.
 
 ---
 

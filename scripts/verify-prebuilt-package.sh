@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright (c) 2026 Hi-Jiajun.
 set -euo pipefail
 
 PACKAGE_TYPE=""
@@ -144,6 +146,7 @@ PPPOX_API="${ROOTDIR}/usr/share/vpp/api/plugins/pppox.api.json"
 PACKAGE_README="${ROOTDIR}/usr/share/doc/vpp-pppoeclient-plugins/README.md"
 PACKAGE_LICENSE="${ROOTDIR}/usr/share/doc/vpp-pppoeclient-plugins/LICENSE"
 PACKAGE_THIRD_PARTY_LICENSES="${ROOTDIR}/usr/share/doc/vpp-pppoeclient-plugins/THIRD_PARTY_LICENSES.md"
+PACKAGE_NOTICE="${ROOTDIR}/usr/share/doc/vpp-pppoeclient-plugins/NOTICE"
 
 expect_file "${PPPOECLIENT_SO}"
 expect_file "${PPPOECLIENT_API}"
@@ -151,6 +154,7 @@ expect_file "${PPPOX_API}"
 expect_file "${PACKAGE_README}"
 expect_file "${PACKAGE_LICENSE}"
 expect_file "${PACKAGE_THIRD_PARTY_LICENSES}"
+expect_file "${PACKAGE_NOTICE}"
 
 verify_elf "${PPPOECLIENT_SO}"
 verify_json "${PPPOECLIENT_API}"

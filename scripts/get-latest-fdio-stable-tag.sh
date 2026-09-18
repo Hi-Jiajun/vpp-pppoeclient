@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright (c) 2026 Hi-Jiajun.
 set -euo pipefail
 
 REPO_URL="${1:-https://github.com/FDio/vpp.git}"
