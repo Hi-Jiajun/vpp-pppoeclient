@@ -26,15 +26,15 @@
 - **VLAN / QinQ 封装**：数据面原生支持单层 VLAN 和 QinQ（双层 VLAN）封装/解封装
 - **TCP MSS Clamping**：自动修正 TCP MSS 避免分片
 - **多实例并发**：每个 PPPoE 会话用独立 `sw-if-index` 虚拟接口承载，支持同时跑多路拨号
-- **DHCPv6-PD 集成**：通过 `vlib_get_plugin_symbol` 动态加载 `dhcp` 插件的 `*_get_runtime()` 接口，`show pppoe client detail` 直接展示 DHCPv6 IA-NA 地址和 PD 前缀租约状态
+- **DHCPv6-PD 集成**：通过 `vlib_get_plugin_symbol` 动态加载 `dhcp` 插件的 `*_get_runtime()` 接口，`show pppoe client detail` 直接展示 DHCPv6 IA-NA 地址和 PD 前缀租约状态（需宿主 VPP 含 `dhcp6_*_get_runtime` 导出补丁，见下方预编译包说明）
 - **会话持久化 + 可靠 PADT**：会话 ID 和 AC MAC 原子写入文件；进程退出时通过 raw AF_PACKET socket 直接发 PADT，不依赖 VPP 数据面路径，确保可靠断线
-- **RDMA Flow Steering**：原生支持 RDMA 网卡的 PPPoE flow steering（discovery `0x8863` + session `0x8864`）
-- **DPDK MAC 容忍**：MFIB 组播重放时容忍 MAC 地址重复，避免误判
+- **RDMA Flow Steering**：原生支持 RDMA 网卡的 PPPoE flow steering（discovery `0x8863` + session `0x8864`；改动位于插件开发分支的 `rdma` 插件，需同源 VPP）
+- **DPDK MAC 容忍**：MFIB 组播重放时容忍 MAC 地址重复，避免误判（同上，位于插件开发分支的 `dpdk` 插件）
 - **可观测性丰富**：`show pppoe client history` / `show pppoe client summary` 暴露每条会话的状态机迁移 + 关键事件
 - **退避与抖动**：PADI 重试指数退避（cap 30s），避免大量客户端同时重连时的风暴
 - **Host-Uniq-less 回退**：ISP 端未返回 host-uniq 时的智能回退匹配机制
 - **接口命名可控**：`create pppoe client ... name wan0` 指定业务语义名称，不局限于 VPP 自动分配的 `pppox0`
-- **完整测试套件**：4493 行 Python 回归测试（91 个测试方法），覆盖发现、会话、认证、CLI 全路径
+- **完整测试套件**：[4493 行 Python 回归测试（91 个测试方法）](https://github.com/Hi-Jiajun/vpp/blob/feat/pr-pppoeclient/test/test_pppoeclient.py)，覆盖发现、会话、认证、CLI 全路径
 - **性能**：单核 27.8 Mpps PPPoE 转发，10G 网卡下 TCP 4 流 9.23 Gbps；详见 [性能基准测试](./docs/PERFORMANCE.md)
 
 ## 🏗️ 架构
@@ -83,12 +83,16 @@ flowchart LR
 包命名格式：`vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`。
 `<vpp_ref>` 取自构建时 VPP 源码中最近的版本 tag（当前为 `v26.10-rc0`）。
 
-> **说明**：预编译包基于官方 [FDio/vpp](https://github.com/FDio/vpp) **master 分支**构建，
-> 而不是最新的 tag：`v26.10-rc0` 是 2026-05-20 的版本号起始 commit，早于插件所需的
-> `vlib/handoff.h`、6 参数 `vlib_buffer_enqueue_to_thread` 与 DHCPv6 运行时导出
-> （`dhcp6_*_get_runtime`，2026 年 7 月合入官方主线；插件通过 `vlib_get_plugin_symbol`
-> 动态加载该符号，对官方 VPP 完全兼容）。包文件名沿用最近的 tag `v26.10-rc0`，
-> 实际对应构建时的 master 快照；请安装同期官方 master 构建的 `vpp` / `vpp-plugin-core`。
+> **说明**：预编译包基于插件开发分支
+> [`Hi-Jiajun/vpp@feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient)
+> 构建。该分支 = 当前官方 master + 插件本体 + 插件所需的**宿主侧配套补丁**
+> （`dhcp` 插件的 `dhcp6_*_get_runtime` 导出、`src/vnet/interface.c` 的 PPPoX 重命名守卫、
+> rdma/dpdk 的 PPPoE 配套改动）。包文件名沿用最近的版本 tag `v26.10-rc0`，
+> 实际对应的分支快照记录在 Release 说明、包内 README 和包版本号里。
+>
+> **宿主 VPP 需要同源**：请使用同一分支（或包含上述补丁）构建的 `vpp` / `vpp-plugin-core`。
+> 若用纯官方 FDio master 构建的 VPP，插件仍能完成拨号，但 `show pppoe client detail`
+> 的 DHCPv6 段会显示 `<unavailable>`，RDMA flow steering 与 DPDK MAC 容忍也不会生效。
 
 ### 2. 安装
 
@@ -100,7 +104,8 @@ sudo apt install ./vpp-pppoeclient-plugins-v26.10-rc0-ubuntu24.04.amd64.deb
 sudo dnf install ./vpp-pppoeclient-plugins-v26.10-rc0-fedora43.x86_64.rpm
 ```
 
-预编译包依赖与 Release ref 对应的 VPP 运行时，请先安装匹配版本的 `vpp` / `vpp-plugin-core`。
+预编译包依赖与 Release ref 对应的 VPP 运行时，请先安装**同源构建**的 `vpp` / `vpp-plugin-core`
+（即来自 `Hi-Jiajun/vpp@feat/pr-pppoeclient` 的构建）。
 
 ### 3. 起一条 PPPoE 拨号
 

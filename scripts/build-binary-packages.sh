@@ -279,8 +279,14 @@ EOF
   export PATH="${TOOLBIN}:${PATH}"
 fi
 
-echo "Cloning ${VPP_REPO_URL} at ${VPP_REF}"
-git clone --branch "${VPP_REF}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
+VPP_REF_REQUESTED="${VPP_REF}"
+
+echo "Cloning ${VPP_REPO_URL} at ${VPP_REF_REQUESTED}"
+git clone --branch "${VPP_REF_REQUESTED}" "${VPP_REPO_URL}" "${VPP_WORKTREE}"
+
+VPP_COMMIT_FULL="$(git -C "${VPP_WORKTREE}" rev-parse HEAD)"
+VPP_COMMIT_SHORT="${VPP_COMMIT_FULL:0:9}"
+echo "VPP source commit: ${VPP_COMMIT_FULL}"
 
 # For non-tag refs (e.g. branch names), detect version from git history
 if ! [[ "${VPP_REF}" =~ ^v[0-9] ]]; then
@@ -296,11 +302,14 @@ if [[ -z "${VPP_VERSION}" ]]; then
 fi
 
 VPP_REF_SANITIZED="$(echo "${VPP_REF}" | sed 's/[^A-Za-z0-9._-]/-/g')"
+# The iteration pins both the VPP snapshot and the plugin commit, so packages
+# rebuilt from a different VPP source are distinguishable (and sort newer, as
+# "vpp..." > "git..." in both dpkg and rpm version ordering).
 ITERATION_SUFFIX="$(echo "${VPP_VERSION_RAW#${VPP_VERSION}}" | sed 's/^[.-]*//' | sed 's/[^A-Za-z0-9]/./g' | sed 's/\.\.+/./g' | sed 's/^\.//; s/\.$//')"
 if [[ -n "${ITERATION_SUFFIX}" ]]; then
-  PACKAGE_ITERATION="${ITERATION_SUFFIX}.git${SHORT_SHA}.${DISTRO_ID}"
+  PACKAGE_ITERATION="${ITERATION_SUFFIX}.vpp${VPP_COMMIT_SHORT}.git${SHORT_SHA}.${DISTRO_ID}"
 else
-  PACKAGE_ITERATION="git${SHORT_SHA}.${DISTRO_ID}"
+  PACKAGE_ITERATION="vpp${VPP_COMMIT_SHORT}.git${SHORT_SHA}.${DISTRO_ID}"
 fi
 
 if [[ "${PACKAGE_TYPE}" == "deb" ]]; then
@@ -336,6 +345,55 @@ MAKE_ARGS+=('DPDK_MLX_DEFAULT=n')
 echo "Building plugin binaries against ${VPP_REF}"
 make -C "${VPP_WORKTREE}" "${MAKE_ARGS[@]}" build-release
 
+# Host-contract gates.  The plugin resolves these host-side hooks at runtime, so
+# a VPP source without them produces a package that builds cleanly but silently
+# degrades (`show pppoe client detail` -> <unavailable>, PPPoX renames touching
+# an unrelated graph node).  Fork-branch builds must contain them; upstream-only
+# builds only warn.
+VPP_FORK_BUILD=0
+if [[ "${VPP_REPO_URL}" == *"Hi-Jiajun/vpp"* ]]; then
+  VPP_FORK_BUILD=1
+fi
+
+host_gate_fail() {
+  if [[ "${VPP_FORK_BUILD}" -eq 1 ]]; then
+    echo "ERROR: $1" >&2
+    exit 1
+  fi
+  echo "WARNING: $1" >&2
+}
+
+dynamic_symbol_names() {
+  local so="$1"
+  if command -v nm >/dev/null 2>&1; then
+    nm -D --defined-only "${so}" 2>/dev/null | awk '{print $NF}'
+  else
+    readelf --dyn-syms -W "${so}" 2>/dev/null | awk '{print $NF}'
+  fi
+}
+
+DHCP_PLUGIN_SO="$(find "${VPP_WORKTREE}/build-root" -type f -path '*vpp_plugins/dhcp_plugin.so' | head -n 1)"
+if [[ -z "${DHCP_PLUGIN_SO}" ]]; then
+  DHCP_PLUGIN_SO="$(find "${VPP_WORKTREE}/build-root" -type f -name 'dhcp_plugin.so' | head -n 1)"
+fi
+if [[ -n "${DHCP_PLUGIN_SO}" ]]; then
+  for sym in dhcp6_ia_na_client_get_runtime dhcp6_pd_client_get_runtime; do
+    if dynamic_symbol_names "${DHCP_PLUGIN_SO}" | grep -qx "${sym}"; then
+      echo "Host gate OK: ${sym} exported by dhcp_plugin.so"
+    else
+      host_gate_fail "host VPP does not export ${sym}; 'show pppoe client detail' would report <unavailable>"
+    fi
+  done
+else
+  echo "WARNING: dhcp_plugin.so not found under build-root; skipped the DHCPv6 export gate" >&2
+fi
+
+if grep -q "dev_class->tx_function || dev_class->tx_fn_registrations" "${VPP_WORKTREE}/src/vnet/interface.c"; then
+  echo "Host gate OK: vnet_rename_interface guard present"
+else
+  host_gate_fail "host VPP lacks the vnet_rename_interface guard; PPPoX renames would rename an unrelated graph node"
+fi
+
 PPPOECLIENT_SO="$(find "${VPP_WORKTREE}/build-root" -type f -name 'pppoeclient_plugin.so' | head -n 1)"
 PPPOECLIENT_API_JSON="$(find "${VPP_WORKTREE}/build-root" -type f -path '*/share/vpp/api/plugins/pppoeclient.api.json' | head -n 1)"
 PPPOX_API_JSON="$(find "${VPP_WORKTREE}/build-root" -type f -path '*/share/vpp/api/plugins/pppox.api.json' | head -n 1)"
@@ -367,10 +425,13 @@ It also includes the API JSON descriptors:
 - pppoeclient.api.json
 - pppox.api.json
 
-Package target VPP ref:
-- ${VPP_REF}
+Package target VPP:
+- repository: ${VPP_REPO_URL}
+- requested ref: ${VPP_REF_REQUESTED}
+- version tag: ${VPP_REF}
+- commit: ${VPP_COMMIT_FULL}
 
-Source commit:
+Plugin source commit:
 - ${FULL_SHA}
 
 Installed locations:
@@ -395,7 +456,7 @@ FPM_ARGS=(
   -v "${VPP_VERSION}"
   --iteration "${PACKAGE_ITERATION}"
   -a "${PACKAGE_ARCH}"
-  --description "Prebuilt VPP PPPoE client plugins for ${VPP_REF}"
+  --description "Prebuilt VPP PPPoE client plugins for ${VPP_REF} (source ${VPP_REPO_URL}@${VPP_REF_REQUESTED} ${VPP_COMMIT_SHORT})"
   --url "https://github.com/Hi-Jiajun/vpp-pppoeclient"
   --license "Apache-2.0"
   --maintainer "Hi-Jiajun"

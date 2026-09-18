@@ -23,15 +23,15 @@
 - **VLAN / QinQ encapsulation**: native single-tag VLAN and QinQ (double-tag) encap/decap in the datapath
 - **TCP MSS clamping**: automatic TCP MSS correction to avoid fragmentation
 - **Concurrent sessions**: every PPPoE session is carried by a dedicated `sw-if-index` virtual interface, so many dial-ups run in parallel
-- **DHCPv6-PD integration**: dynamically loads `dhcp` plugin's `*_get_runtime()` symbols via `vlib_get_plugin_symbol`; `show pppoe client detail` displays DHCPv6 IA-NA address and PD prefix lease state
+- **DHCPv6-PD integration**: dynamically loads `dhcp` plugin's `*_get_runtime()` symbols via `vlib_get_plugin_symbol`; `show pppoe client detail` displays DHCPv6 IA-NA address and PD prefix lease state (requires the `dhcp6_*_get_runtime` export patch in the host VPP — see the prebuilt package notes)
 - **Session persistence + reliable PADT**: session ID and AC MAC written atomically to a file; on exit a PADT is sent via raw AF_PACKET socket directly, independent of the VPP datapath
-- **RDMA flow steering**: native PPPoE flow steering for RDMA NICs (discovery `0x8863` + session `0x8864`)
-- **DPDK MAC tolerance**: tolerates MAC address duplication during MFIB multicast replay
+- **RDMA flow steering**: native PPPoE flow steering for RDMA NICs (discovery `0x8863` + session `0x8864`; the change lives in the `rdma` plugin on the development branch, so it needs a matching host VPP)
+- **DPDK MAC tolerance**: tolerates MAC address duplication during MFIB multicast replay (same — in the `dpdk` plugin on the development branch)
 - **Observability**: `show pppoe client history` / `show pppoe client summary` expose per-session state machine transitions and key events
 - **Exponential backoff**: PADI retries use exponential backoff (cap 30s) to avoid reconnection storms
 - **Host-Uniq-less fallback**: intelligent fallback matching when ISP does not return host-uniq
 - **User-assignable interface names**: `create pppoe client ... name wan0` assigns a business-meaningful name instead of the auto-assigned `pppox0`
-- **Full test suite**: 4493-line Python regression tests (91 test methods) covering discovery, session, auth, and CLI
+- **Full test suite**: [4493-line Python regression tests (91 test methods)](https://github.com/Hi-Jiajun/vpp/blob/feat/pr-pppoeclient/test/test_pppoeclient.py) covering discovery, session, auth, and CLI
 - **Performance**: 27.8 Mpps single-core PPPoE forwarding, 9.23 Gbps TCP with 4 streams on a 10G NIC — see [Performance Benchmarks](./docs/PERFORMANCE_EN.md)
 
 ## 🏗️ Architecture
@@ -80,13 +80,18 @@ Pick a package for your distribution from [Releases](https://github.com/Hi-Jiaju
 Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`.
 `<vpp_ref>` is the nearest version tag in the VPP source used for the build (currently `v26.10-rc0`).
 
-> **Note**: prebuilt packages are built against official [FDio/vpp](https://github.com/FDio/vpp) **master**,
-> not the newest tag: `v26.10-rc0` is the version-bump commit from 2026-05-20 and predates the
-> `vlib/handoff.h`, 6-argument `vlib_buffer_enqueue_to_thread`, and DHCPv6 runtime exports
-> (`dhcp6_*_get_runtime`, merged upstream in July 2026; the plugin loads them dynamically via
-> `vlib_get_plugin_symbol`, so it is fully compatible with official VPP). The package filename keeps
-> the nearest tag (`v26.10-rc0`) while the build tracks the master snapshot — install a `vpp` /
-> `vpp-plugin-core` built from the same official master snapshot.
+> **Note**: prebuilt packages are built from the plugin development branch
+> [`Hi-Jiajun/vpp@feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient).
+> That branch = current official master + the plugin + the **host-side companion patches** the plugin
+> needs (`dhcp6_*_get_runtime` exports in the `dhcp` plugin, the PPPoX rename guard in
+> `src/vnet/interface.c`, and the rdma/dpdk PPPoE changes). The package filename keeps the nearest
+> version tag (`v26.10-rc0`); the actual branch snapshot is recorded in the release notes, the
+> package README and the package version string.
+>
+> **The host VPP must match**: install a `vpp` / `vpp-plugin-core` built from the same branch (or one
+> carrying the same patches). With a plain official-FDio-master VPP the plugin still brings up
+> sessions, but the DHCPv6 section of `show pppoe client detail` reports `<unavailable>`, and the
+> RDMA flow steering / DPDK MAC tolerance changes are not active.
 
 ### 2. Install
 
@@ -98,7 +103,8 @@ sudo apt install ./vpp-pppoeclient-plugins-v26.10-rc0-ubuntu24.04.amd64.deb
 sudo dnf install ./vpp-pppoeclient-plugins-v26.10-rc0-fedora43.x86_64.rpm
 ```
 
-The package depends on a matching VPP runtime (`vpp` / `vpp-plugin-core`) for the same ref.
+The package depends on a matching VPP runtime (`vpp` / `vpp-plugin-core`) built from the same branch
+(`Hi-Jiajun/vpp@feat/pr-pppoeclient`).
 
 ### 3. Bring up a PPPoE session
 

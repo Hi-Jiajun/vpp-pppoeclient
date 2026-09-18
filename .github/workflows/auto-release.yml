@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       vpp_upstream_url:
-        description: VPP repository URL to build against (FDio official or fork)
+        description: "VPP repository URL to build against (default: Hi-Jiajun/vpp fork; use https://github.com/FDio/vpp.git for upstream-only builds)"
         required: false
         default: ""
       vpp_ref:
-        description: VPP tag, branch or SHA to build against (auto-detected from FDio stable if blank)
+        description: "VPP tag, branch or SHA to build against (default: feat/pr-pppoeclient on the fork, master on FDio)"
         required: false
         default: ""
       master_ref:
@@ -24,7 +24,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VPP_UPSTREAM_URL: ${{ github.event.inputs.vpp_upstream_url || 'https://github.com/FDio/vpp.git' }}
+  # The prebuilt packages track the plugin development branch: it carries the
+  # plugin plus the host-side patches the plugin needs (dhcp6 runtime exports,
+  # the PPPoX rename guard in src/vnet/interface.c, rdma/dpdk PPPoE support).
+  # Pass vpp_upstream_url=https://github.com/FDio/vpp.git for upstream-only builds.
+  VPP_UPSTREAM_URL: ${{ github.event.inputs.vpp_upstream_url || 'https://github.com/Hi-Jiajun/vpp.git' }}
+  VPP_DEFAULT_BRANCH: feat/pr-pppoeclient
 
 jobs:
   build-prebuilt-packages:
@@ -197,30 +202,40 @@ jobs:
           short_sha="$(git rev-parse --short HEAD)"
           full_sha="$(git rev-parse HEAD)"
           cd "${GITHUB_WORKSPACE}"
+
+          resolve_branch_commit() {
+            git ls-remote "$1" "refs/heads/$2" 2>/dev/null | awk 'NR==1{print $1}'
+          }
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.vpp_ref }}" ]]; then
             vpp_ref="${{ inputs.vpp_ref }}"
             vpp_branch="${vpp_ref}"
             vpp_commit="$(git ls-remote "${VPP_UPSTREAM_URL}" "${vpp_ref}" "refs/heads/${vpp_ref}" "refs/tags/${vpp_ref}" "refs/tags/${vpp_ref}^{}" 2>/dev/null | awk 'NR==1{print $1}')"
             [[ -n "${vpp_commit}" ]] || vpp_commit="${vpp_ref}"
-          elif [[ "${VPP_UPSTREAM_URL}" != *"FDio/vpp"* ]]; then
-            # Fork build — use feature branch for clone; detect version tag for release
-            tmpclone="$(mktemp -d)"
-            git clone --branch feat/pr-pppoeclient --single-branch "${VPP_UPSTREAM_URL}" "${tmpclone}/vpp-ref"
-            git -C "${tmpclone}/vpp-ref" fetch --tags https://github.com/FDio/vpp.git || true
-            vpp_ref="$(git -C "${tmpclone}/vpp-ref" describe --tags --abbrev=0 HEAD 2>/dev/null || echo "v0.0")"
-            vpp_commit="$(git -C "${tmpclone}/vpp-ref" rev-parse HEAD)"
-            rm -rf "${tmpclone}"
-            vpp_branch="feat/pr-pppoeclient"
-          else
-            # Build against FDio master, not the newest tag: the latest stable
-            # tag v26.10-rc0 is the version-bump commit from 2026-05-20 and
-            # predates upstream APIs this plugin requires (vlib/handoff.h, the
-            # 6-argument vlib_buffer_enqueue_to_thread, DHCPv6 runtime
-            # exports).  Master carries all of them.
+          elif [[ "${VPP_UPSTREAM_URL}" == *"FDio/vpp"* ]]; then
+            # Upstream-only build. Build FDio master rather than the newest tag:
+            # v26.10-rc0 is the version-bump commit from 2026-05-20 and predates
+            # upstream APIs this plugin requires (vlib/handoff.h, the 6-argument
+            # vlib_buffer_enqueue_to_thread).  Such builds do NOT contain the
+            # host-side companion patches, so the build script downgrades its
+            # host-contract checks to warnings.
             vpp_ref="master"
             vpp_branch="master"
-            vpp_commit="$(git ls-remote "${VPP_UPSTREAM_URL}" refs/heads/master | awk 'NR==1{print $1}')"
+            vpp_commit="$(resolve_branch_commit "${VPP_UPSTREAM_URL}" master)"
+          else
+            # Default: build from the project fork branch the mirror syncs from,
+            # so the packages match the branch (plugin + host-side patches).
+            vpp_ref="${VPP_DEFAULT_BRANCH}"
+            vpp_branch="${VPP_DEFAULT_BRANCH}"
+            vpp_commit="$(resolve_branch_commit "${VPP_UPSTREAM_URL}" "${vpp_branch}")"
           fi
+
+          if [[ -z "${vpp_commit}" ]]; then
+            echo "::error::Cannot resolve ${VPP_UPSTREAM_URL} @ ${vpp_ref}" >&2
+            exit 1
+          fi
+          echo "Building against ${VPP_UPSTREAM_URL} @ ${vpp_branch} (${vpp_commit})"
+
           {
             echo "short_sha=${short_sha}"
             echo "full_sha=${full_sha}"
@@ -302,8 +317,9 @@ jobs:
           vpp_upstream_url="${{ needs.build-prebuilt-packages.outputs.vpp_upstream_url }}"
           release_date="$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           vpp_ref_sanitized="$(echo "${vpp_ref}" | sed 's/[^A-Za-z0-9._-]/-/g')"
+          vpp_repo_label="$(echo "${vpp_upstream_url}" | sed -E 's#^https?://(www\.)?github\.com/##; s#\.git$##')"
           release_tag="fdio-vpp-${vpp_ref_sanitized}-${short_sha}"
-          release_title="FDio/vpp ${vpp_ref} Prebuilt Packages (${short_sha})"
+          release_title="${vpp_repo_label}@${vpp_ref} Prebuilt Packages (${short_sha})"
           {
             echo "tag=${release_tag}"
             echo "title=${release_title}"

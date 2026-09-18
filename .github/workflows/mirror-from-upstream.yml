@@ -97,12 +97,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Build against OFFICIAL FDio/vpp: the DHCPv6 runtime exports the
-          # plugin observes were merged upstream in July 2026, so the fork is
-          # no longer required.  UPSTREAM_URL (the fork) is only used for
-          # mirroring the plugin subtree above.
+          # Build the packages from the same fork branch this workflow just
+          # mirrored.  The branch carries the plugin plus its host-side
+          # companion patches (dhcp6 runtime exports, the PPPoX rename guard in
+          # src/vnet/interface.c, rdma/dpdk PPPoE support); building against
+          # official FDio master would ship the plugin without them.
           gh workflow run auto-release.yml \
             --repo "${{ github.repository }}" \
             --ref "${{ github.ref_name }}" \
+            -f vpp_upstream_url="${UPSTREAM_URL}" \
+            -f vpp_ref="${{ steps.resolve.outputs.upstream_ref }}" \
             -f master_ref="${{ steps.split.outputs.split_tip }}"
-          echo "Triggered auto-release.yml on ref ${{ github.ref_name }} (official FDio build) master_ref ${{ steps.split.outputs.split_tip }}"
+          echo "Triggered auto-release.yml on ref ${{ github.ref_name }} from ${UPSTREAM_URL}@${{ steps.resolve.outputs.upstream_ref }} master_ref ${{ steps.split.outputs.split_tip }}"
