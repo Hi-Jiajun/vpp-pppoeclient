@@ -78,14 +78,14 @@ Pick a package for your distribution from [Releases](https://github.com/Hi-Jiaju
 | Rocky Linux 9 / RHEL 9 | `.rpm` | x86_64 |
 
 Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`.
-`<vpp_ref>` is the nearest version tag in the VPP source used for the build (currently `v26.10-rc0`).
+`<vpp_ref>` is the nearest version tag in the VPP source used for the build (currently `v27.02-rc0`).
 
 > **Note**: prebuilt packages are built from the plugin development branch
 > [`Hi-Jiajun/vpp@feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient).
 > That branch = current official master + the plugin + the **host-side companion patches** the plugin
 > needs (`dhcp6_*_get_runtime` exports in the `dhcp` plugin, the PPPoX rename guard in
 > `src/vnet/interface.c`, and the rdma/dpdk PPPoE changes). The package filename keeps the nearest
-> version tag (`v26.10-rc0`); the actual branch snapshot is recorded in the release notes, the
+> version tag (`v27.02-rc0`); the actual branch snapshot is recorded in the release notes, the
 > package README and the package version string.
 >
 > **The host VPP must match**: install a `vpp` / `vpp-plugin-core` built from the same branch (or one
@@ -97,10 +97,10 @@ Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`.
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./vpp-pppoeclient-plugins-v26.10-rc0-ubuntu24.04.amd64.deb
+sudo apt install ./vpp-pppoeclient-plugins-v27.02-rc0-ubuntu24.04.amd64.deb
 
 # Fedora / Rocky / RHEL
-sudo dnf install ./vpp-pppoeclient-plugins-v26.10-rc0-fedora43.x86_64.rpm
+sudo dnf install ./vpp-pppoeclient-plugins-v27.02-rc0-fedora43.x86_64.rpm
 ```
 
 The package depends on a matching VPP runtime (`vpp` / `vpp-plugin-core`) built from the same branch

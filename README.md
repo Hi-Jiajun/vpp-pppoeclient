@@ -81,13 +81,13 @@ flowchart LR
 | Rocky Linux 9 / RHEL 9 | `.rpm` | x86_64 |
 
 包命名格式：`vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`。
-`<vpp_ref>` 取自构建时 VPP 源码中最近的版本 tag（当前为 `v26.10-rc0`）。
+`<vpp_ref>` 取自构建时 VPP 源码中最近的版本 tag（当前为 `v27.02-rc0`）。
 
 > **说明**：预编译包基于插件开发分支
 > [`Hi-Jiajun/vpp@feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient)
 > 构建。该分支 = 当前官方 master + 插件本体 + 插件所需的**宿主侧配套补丁**
 > （`dhcp` 插件的 `dhcp6_*_get_runtime` 导出、`src/vnet/interface.c` 的 PPPoX 重命名守卫、
-> rdma/dpdk 的 PPPoE 配套改动）。包文件名沿用最近的版本 tag `v26.10-rc0`，
+> rdma/dpdk 的 PPPoE 配套改动）。包文件名沿用最近的版本 tag `v27.02-rc0`，
 > 实际对应的分支快照记录在 Release 说明、包内 README 和包版本号里。
 >
 > **宿主 VPP 需要同源**：请使用同一分支（或包含上述补丁）构建的 `vpp` / `vpp-plugin-core`。
@@ -98,10 +98,10 @@ flowchart LR
 
 ```bash
 # Debian / Ubuntu
-sudo apt install ./vpp-pppoeclient-plugins-v26.10-rc0-ubuntu24.04.amd64.deb
+sudo apt install ./vpp-pppoeclient-plugins-v27.02-rc0-ubuntu24.04.amd64.deb
 
 # Fedora / Rocky / RHEL
-sudo dnf install ./vpp-pppoeclient-plugins-v26.10-rc0-fedora43.x86_64.rpm
+sudo dnf install ./vpp-pppoeclient-plugins-v27.02-rc0-fedora43.x86_64.rpm
 ```
 
 预编译包依赖与 Release ref 对应的 VPP 运行时，请先安装**同源构建**的 `vpp` / `vpp-plugin-core`
