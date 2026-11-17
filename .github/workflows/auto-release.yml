@@ -27,8 +27,8 @@ concurrency:
 
 env:
   # The prebuilt packages track the plugin development branch: it carries the
-  # plugin plus the host-side patches the plugin needs (dhcp6 runtime exports,
-  # the PPPoX rename guard in src/vnet/interface.c, rdma/dpdk PPPoE support).
+  # plugin plus the host-side companion patches (dhcp6_*_get_runtime exports in
+  # src/plugins/dhcp/ and the no-output TX node rename guard in src/vnet/interface.c).
   # Pass vpp_upstream_url=https://github.com/FDio/vpp.git for upstream-only builds.
   VPP_UPSTREAM_URL: ${{ github.event.inputs.vpp_upstream_url || 'https://github.com/Hi-Jiajun/vpp.git' }}
   VPP_DEFAULT_BRANCH: feat/pr-pppoeclient
@@ -121,27 +121,6 @@ jobs:
                 chrpath libffi-devel rpm-build \
                 which findutils rsync
           - distro_id: rockylinux9
-            container_image: rockylinux:9
-            package_type: rpm
-            package_arch: x86_64
-            plugin_lib_dir: /usr/lib64/vpp_plugins
-            make_os_id: ""
-            make_os_version_id: ""
-            cc_override: ""
-            skip_install_dep: "true"
-            bootstrap_cmd: |
-              dnf install -y dnf-plugins-core epel-release
-              dnf config-manager --set-enabled crb || true
-              dnf install -y \
-                openssl git ca-certificates ruby ruby-devel gcc gcc-c++ make \
-                autoconf automake bison byacc libtool \
-                apr-devel numactl-devel check check-devel ninja-build ccache \
-                xmlto elfutils-libelf-devel libpcap-devel libnl3-devel libmnl-devel \
-                nasm socat subunit subunit-devel openssl-devel python3-devel \
-                python3-ply python3-virtualenv python3-jsonschema cmake llvm clang \
-                infiniband-diags chrpath libffi-devel rpm-build \
-                which findutils rsync
-          - distro_id: rhel9
             container_image: rockylinux:9
             package_type: rpm
             package_arch: x86_64

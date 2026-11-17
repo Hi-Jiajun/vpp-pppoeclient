@@ -398,9 +398,8 @@ fi
 
 PPPOECLIENT_SO="$(find "${VPP_WORKTREE}/build-root" -type f -name 'pppoeclient_plugin.so' | head -n 1)"
 PPPOECLIENT_API_JSON="$(find "${VPP_WORKTREE}/build-root" -type f -path '*/share/vpp/api/plugins/pppoeclient.api.json' | head -n 1)"
-PPPOX_API_JSON="$(find "${VPP_WORKTREE}/build-root" -type f -path '*/share/vpp/api/plugins/pppox.api.json' | head -n 1)"
 
-for path in "${PPPOECLIENT_SO}" "${PPPOECLIENT_API_JSON}" "${PPPOX_API_JSON}"; do
+for path in "${PPPOECLIENT_SO}" "${PPPOECLIENT_API_JSON}"; do
   if [[ -z "${path}" || ! -f "${path}" ]]; then
     echo "Failed to locate expected build artifact: ${path}" >&2
     exit 1
@@ -411,7 +410,6 @@ mkdir -p "${LIBROOT}" "${APIDIR}" "${DOCROOT}"
 
 install -m 755 "${PPPOECLIENT_SO}" "${LIBROOT}/pppoeclient_plugin.so"
 install -m 644 "${PPPOECLIENT_API_JSON}" "${APIDIR}/pppoeclient.api.json"
-install -m 644 "${PPPOX_API_JSON}" "${APIDIR}/pppox.api.json"
 install -m 644 "${REPO_ROOT}/LICENSE" "${DOCROOT}/LICENSE"
 install -m 644 "${REPO_ROOT}/NOTICE" "${DOCROOT}/NOTICE"
 install -m 644 "${REPO_ROOT}/THIRD_PARTY_LICENSES.md" "${DOCROOT}/THIRD_PARTY_LICENSES.md"
@@ -423,10 +421,9 @@ This package contains the prebuilt VPP plugin binary:
 
 - pppoeclient_plugin.so  (bundles the PPPoE client and the PPPoX core)
 
-It also includes the API JSON descriptors:
+It also includes the API JSON descriptor:
 
 - pppoeclient.api.json
-- pppox.api.json
 
 Package target VPP:
 - repository: ${VPP_REPO_URL}
@@ -454,6 +451,31 @@ Notes:
   full upstream notices) in the pppd-derived sources
 EOF
 
+VPP_DEPENDS_ARGS=(-d "vpp")
+if [[ "${VPP_VERSION}" != "0.0" && "${VPP_VERSION}" =~ ^([0-9]+)\.([0-9]+) ]]; then
+  VPP_SERIES_YEAR="${BASH_REMATCH[1]}"
+  VPP_SERIES_MONTH="${BASH_REMATCH[2]}"
+  case "${VPP_SERIES_MONTH}" in
+    02|2)
+      VPP_NEXT_SERIES="${VPP_SERIES_YEAR}.06"
+      ;;
+    06|6)
+      VPP_NEXT_SERIES="${VPP_SERIES_YEAR}.10"
+      ;;
+    10)
+      VPP_NEXT_SERIES="$((10#${VPP_SERIES_YEAR} + 1)).02"
+      ;;
+    *)
+      VPP_NEXT_SERIES="$((10#${VPP_SERIES_YEAR} + 1)).00"
+      ;;
+  esac
+  if [[ "${PACKAGE_TYPE}" == "deb" ]]; then
+    VPP_DEPENDS_ARGS=(-d "vpp >= ${VPP_VERSION}" -d "vpp << ${VPP_NEXT_SERIES}~")
+  else
+    VPP_DEPENDS_ARGS=(-d "vpp >= ${VPP_VERSION}" -d "vpp < ${VPP_NEXT_SERIES}")
+  fi
+fi
+
 FPM_ARGS=(
   -s dir
   -t "${PACKAGE_TYPE}"
@@ -467,7 +489,7 @@ FPM_ARGS=(
   --maintainer "Jiajun Liang"
   --package "${OUTPUT_DIR}/${ASSET_NAME}"
   -C "${PKGROOT}"
-  -d "vpp"
+  "${VPP_DEPENDS_ARGS[@]}"
   .
 )
 

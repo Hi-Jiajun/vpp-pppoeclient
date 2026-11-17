@@ -101,9 +101,9 @@ jobs:
         run: |
           # Build the packages from the same fork branch this workflow just
           # mirrored.  The branch carries the plugin plus its host-side
-          # companion patches (dhcp6 runtime exports, the PPPoX rename guard in
-          # src/vnet/interface.c, rdma/dpdk PPPoE support); building against
-          # official FDio master would ship the plugin without them.
+          # companion patches (dhcp6_*_get_runtime exports in src/plugins/dhcp/
+          # and the no-output TX node rename guard in src/vnet/interface.c);
+          # building against official FDio master would ship the plugin without them.
           gh workflow run auto-release.yml \
             --repo "${{ github.repository }}" \
             --ref "${{ github.ref_name }}" \

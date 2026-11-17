@@ -8,9 +8,6 @@ at Carnegie Mellon University (http://www.cmu.edu/computing/).
 This product includes software developed by Paul Mackerras
 <paulus@samba.org>.
 
-Portions of this product include software developed by the University of
-California, Berkeley.
-
 This repository contains mixed-license source code:
 
 - Files carrying `SPDX-License-Identifier: Apache-2.0` are covered by the

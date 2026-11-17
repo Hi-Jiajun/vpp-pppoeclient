@@ -19,19 +19,18 @@
 ## ✨ Highlights
 
 - **Userspace-native**: runs entirely inside the VPP dataplane, avoiding the context-switch overhead of the classic `pppd` + kernel tunnel design
-- **Single consolidated plugin**: PPPoE discovery, the PPPoX core, PAP/CHAP, IPCP / IPv6CP are all shipped as one `pppoeclient_plugin.so`
-- **VLAN / QinQ encapsulation**: native single-tag VLAN and QinQ (double-tag) encap/decap in the datapath
-- **TCP MSS clamping**: automatic TCP MSS correction to avoid fragmentation
+- **Single consolidated plugin**: PPPoE discovery, the PPPoX core, PAP/CHAP-MD5 (credentials up to 255 bytes), IPCP / IPv6CP are all shipped as one `pppoeclient_plugin.so`
+- **VLAN / QinQ & wildcard sub-interfaces**: native single-tag VLAN, QinQ (`802.1ad`/`802.1q`), and wildcard / `default` sub-interface session VLAN auto-learning with `O(1)` bihash dispatch
+- **TCP MSS clamping & MTU cap**: automatic TCP MSS correction to avoid fragmentation, plus LCP/IPCP negotiated MTU capped at `configured_mtu` (default 1492)
 - **Concurrent sessions**: every PPPoE session is carried by a dedicated `sw-if-index` virtual interface, so many dial-ups run in parallel
 - **DHCPv6-PD integration**: dynamically loads `dhcp` plugin's `*_get_runtime()` symbols via `vlib_get_plugin_symbol`; `show pppoe client detail` displays DHCPv6 IA-NA address and PD prefix lease state (requires the `dhcp6_*_get_runtime` export patch in the host VPP — see the prebuilt package notes)
 - **Session persistence + reliable PADT**: session ID and AC MAC written atomically to a file; on exit a PADT is sent via raw AF_PACKET socket directly, independent of the VPP datapath
-- **RDMA flow steering**: native PPPoE flow steering for RDMA NICs (discovery `0x8863` + session `0x8864`; the change lives in the `rdma` plugin on the development branch, so it needs a matching host VPP)
-- **DPDK MAC tolerance**: tolerates MAC address duplication during MFIB multicast replay (same — in the `dpdk` plugin on the development branch)
-- **Observability**: `show pppoe client history` / `show pppoe client summary` expose per-session state machine transitions and key events
-- **Exponential backoff**: PADI retries use exponential backoff (cap 30s) to avoid reconnection storms
+- **Single-step creation & live option clearing**: `create pppoe client` accepts credentials, MTU/MRU, timeout, route and DNS options in one step; `set pppoe client` supports `no-use-peer-dns` and `no-add-default-route{,4,6}` with runtime route/DNS sync
+- **Observability**: `show pppoe client history` / `show pppoe client summary` / `show pppoe client detail` expose per-session state machine transitions, leases and key events
+- **Backoff, jitter & rediscovery cooldown**: PADI/PADR retries use exponential backoff (cap 30s) and auth-failure / admin restarts enforce configurable `cooldown` (default 35s, range `1..300` s) to avoid reconnection storms
 - **Host-Uniq-less fallback**: intelligent fallback matching when ISP does not return host-uniq
 - **User-assignable interface names**: `create pppoe client ... name wan0` assigns a business-meaningful name instead of the auto-assigned `pppox0`
-- **Full test suite**: [4493-line Python regression tests (91 test methods)](https://github.com/Hi-Jiajun/vpp/blob/feat/pr-pppoeclient/test/test_pppoeclient.py) covering discovery, session, auth, and CLI
+- **Full test suite**: [5247-line Python regression tests (97 test methods)](https://github.com/Hi-Jiajun/vpp/blob/feat/pr-pppoeclient/test/test_pppoeclient.py) covering discovery, session, auth, routes/DNS, counters and CLI
 - **Performance**: 27.8 Mpps single-core PPPoE forwarding, 9.23 Gbps TCP with 4 streams on a 10G NIC — see [Performance Benchmarks](./docs/PERFORMANCE_EN.md)
 
 ## 🏗️ Architecture
@@ -58,9 +57,9 @@ flowchart LR
 ```
 
 - Single shared library `pppoeclient_plugin.so`; loading it enables every capability
-- PAP / CHAP / LCP / IPCP are ported from `pppd` and rewired to run as VPP graph nodes
+- PAP / CHAP / LCP / IPCP are ported from `pppd` using OpenSSL `EVP_md5()`, VPP `<vppinfra/random.h>` and monotonic timers under VPP's process/graph model
 - DHCPv6-PD integration loads `dhcp_plugin.so` symbols at runtime via `vlib_get_plugin_symbol`, creating no hard link-time dependency
-- Control plane and data plane share the same VPP worker — zero-copy all the way
+- **Control/dataplane split**: PPPoE discovery (`pppoeclient-discovery-input`) and PPP control packets (`pppox-input`, FSM state machines and timers) hand off via `vlib_handoff` to the VPP main thread (`thread 0`), while established session forwarding (`pppoeclient-session-input` / `pppoeclient-session-output`, VLAN/QinQ encap/decap and TCP MSS clamping) runs locklessly in parallel on worker threads
 
 ## 🚀 Quick Start
 
@@ -82,16 +81,16 @@ Package naming: `vpp-pppoeclient-plugins-<vpp_ref>-<distro>.<arch>.{deb,rpm}`.
 
 > **Note**: prebuilt packages are built from the plugin development branch
 > [`Hi-Jiajun/vpp@feat/pr-pppoeclient`](https://github.com/Hi-Jiajun/vpp/tree/feat/pr-pppoeclient).
-> That branch = current official master + the plugin + the **host-side companion patches** the plugin
-> needs (`dhcp6_*_get_runtime` exports in the `dhcp` plugin, the PPPoX rename guard in
-> `src/vnet/interface.c`, and the rdma/dpdk PPPoE changes). The package filename keeps the nearest
-> version tag (`v27.02-rc0`); the actual branch snapshot is recorded in the release notes, the
-> package README and the package version string.
+> That branch carries current official master plus a clean 3-commit Gerrit stack:
+> the no-output TX node rename guard in `src/vnet/interface.c`, `dhcp6_*_get_runtime`
+> exports in the `dhcp` plugin, and the `pppoeclient` plugin (Gerrit `45675` for DPDK is
+> reviewed independently). The package filename keeps the nearest version tag (`v27.02-rc0`);
+> the actual branch snapshot is recorded in the release notes, package README and package version string.
 >
-> **The host VPP must match**: install a `vpp` / `vpp-plugin-core` built from the same branch (or one
-> carrying the same patches). With a plain official-FDio-master VPP the plugin still brings up
-> sessions, but the DHCPv6 section of `show pppoe client detail` reports `<unavailable>`, and the
-> RDMA flow steering / DPDK MAC tolerance changes are not active.
+> **The host VPP must match**: install a `vpp` / `vpp-plugin-core` built from the same branch (or
+> carrying the two host-side patches). With a plain official-FDio-master VPP the plugin still brings
+> up sessions, but the DHCPv6 section of `show pppoe client detail` reports `<unavailable>` and
+> renaming a no-output PPPoX interface lacks the `interface.c` guard.
 
 ### 2. Install
 
@@ -113,11 +112,11 @@ Assume the physical port is `GigabitEthernet0/8/0`, with credentials `user@isp` 
 ```bash
 vppctl
 
-# Create a PPPoE client bound to a physical port; name assigns an interface name (optional)
-vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1 name wan0
+# Option A: Create and start dialling in one step (name / auth / MTU / routes / DNS)
+vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1 name wan0 username user@isp password secret use-peer-dns add-default-route
 
-# Configure auth and other per-session parameters (MTU / default route / peer DNS as needed)
-vpp# set pppoe client wan0 username user@isp password secret use-peer-dns add-default-route
+# Option B: Create first, then update parameters (supports cooldown / mtu / no-* clear flags)
+vpp# set pppoe client wan0 username user@isp password secret mtu 1492 cooldown 35 use-peer-dns add-default-route
 
 # Inspect the session
 vpp# show pppoe client
@@ -130,7 +129,7 @@ vpp# create pppoe client GigabitEthernet0/8/0 host-uniq 1 del
 
 All operator-facing actions live in the `pppoe client` CLI namespace — `create pppoe client` / `set pppoe client` / `show pppoe client ...`. The plugin drives the internal `pppox` control plane (LCP / PAP / CHAP / IPCP); operators do not need to touch `pppox` commands directly.
 
-Full CLI surface is in [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c) — `set pppoe client` accepts `ac-name`, `service-name`, `username`, `password`, `mtu`, `mru`, `timeout`, `use-peer-dns`, `add-default-route{,4,6}`, etc.
+Full CLI surface is in [`pppoeclient.c`](https://github.com/Hi-Jiajun/vpp-pppoeclient/blob/master/pppoeclient.c) — `create pppoe client` accepts `name`, `ac-name`, `service-name`, `username`, `password`, `mtu`, `mru`, `timeout`, `use-peer-dns`, `add-default-route{,4,6}`; `set pppoe client` also supports `cooldown <1..300>`, `no-use-peer-dns`, and `no-add-default-route{,4,6}`.
 
 ## 🧱 Build from source
 
@@ -143,7 +142,7 @@ rsync -a vpp-pppoeclient/ ~/src/vpp/src/plugins/pppoeclient/
 
 cd ~/src/vpp
 make install-dep
-make build-release VPP_EXTRA_CMAKE_ARGS='-DVPP_PLUGINS="ppp,pppoeclient"'
+make build-release VPP_EXTRA_CMAKE_ARGS='-DVPP_PLUGINS="ppp,dhcp,pppoeclient"'
 ```
 
 The resulting `build-root/.../vpp_plugins/pppoeclient_plugin.so` is ready to be loaded by VPP.
@@ -192,8 +191,8 @@ kept verbatim, and the project attribution plus the mixed-license note live in
 [`NOTICE`](./NOTICE).
 
 The pppd-derived files under the PPPoX core retain their original BSD / mixed
-licensing (`BSD-4.3TAHOE`, `Mackerras-3-Clause`, `RSA-MD`, `Sun-PPP`, ...).  The
-full notices are collected in
+licensing (`BSD-Attribution-HPND-disclaimer`, `Mackerras-3-Clause`,
+`Mackerras-3-Clause-acknowledgment`).  The full notices are collected in
 [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md) and match the file headers
 under `pppox/pppd/` on the `master` branch word for word.
 
